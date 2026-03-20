@@ -116,7 +116,7 @@
   const btn = document.createElement('button');
   btn.id = 'cienty-widget-btn';
   btn.innerHTML = `<span style="font-size:28px">👩‍💼</span><div class="online-dot"></div>`;
-  btn.title = 'Falar com a Carla · Suporte Cienty';
+  btn.title = 'Falar com a CarlinhIA · Suporte Cienty';
   document.body.appendChild(btn);
 
   // Bubble hint
@@ -124,7 +124,7 @@
   bubble.id = 'cienty-widget-bubble';
   bubble.innerHTML = `
     <button class="cienty-bubble-close" id="cienty-bubble-close">✕</button>
-    Precisa de ajuda? A <strong>Carla</strong> resolve erros de distribuidoras e dúvidas da plataforma na hora 💜
+    Precisa de ajuda? A <strong>CarlinhIA</strong> resolve erros de distribuidoras e dúvidas da plataforma na hora 💜
   `;
   document.body.appendChild(bubble);
 
@@ -144,7 +144,7 @@
       <div class="cw-msg bot">
         <div class="cw-msg-av">👩‍💼</div>
         <div>
-          <div class="cw-bubble">Olá! Sou a Carla, assistente de suporte da Cienty 👋<br><br>Posso resolver erros de distribuidoras, verificar pedidos e tirar dúvidas da plataforma. Como posso te ajudar?</div>
+          <div class="cw-bubble">Olá! Sou a CarlinhIA, assistente de suporte da Cienty 👋<br><br>Posso resolver erros de distribuidoras, verificar pedidos e tirar dúvidas da plataforma. Como posso te ajudar?</div>
           <div class="cw-time">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
         </div>
       </div>

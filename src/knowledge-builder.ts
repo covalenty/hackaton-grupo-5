@@ -7,18 +7,23 @@ async function fetchAllWhatsAppMessages(limit = 1000): Promise<string[]> {
   const apiKey = process.env.EVOLUTION_API_KEY;
   if (!baseUrl || !apiKey) return [];
   try {
+    // Busca ambos os lados da conversa — mensagens do suporte contêm o conhecimento real
     const r = await fetch(`${baseUrl}/chat/findMessages/Gustavo-Cienty`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: apiKey },
-      body: JSON.stringify({ where: { key: { fromMe: false } }, limit }),
+      body: JSON.stringify({ limit }),
     });
     if (!r.ok) return [];
     const data: any = await r.json();
     const msgs: any[] = Array.isArray(data) ? data : (data.messages?.records || data.records || []);
     return msgs
       .filter((m: any) => m.message?.conversation || m.message?.extendedTextMessage?.text)
-      .map((m: any) => m.message?.conversation || m.message?.extendedTextMessage?.text)
-      .filter((t: string) => t && t.length > 8);
+      .map((m: any) => {
+        const text = m.message?.conversation || m.message?.extendedTextMessage?.text;
+        const who = m.key?.fromMe ? '[Suporte]' : '[Cliente]';
+        return `${who} ${text}`;
+      })
+      .filter((t: string) => t.length > 15);
   } catch (err) {
     console.error('[KnowledgeBuilder] Erro ao buscar mensagens:', err);
     return [];

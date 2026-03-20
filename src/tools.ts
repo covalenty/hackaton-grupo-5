@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { WebClient } from '@slack/web-api';
-import { getProblematicOrders, getDistributorInfo } from './bigquery-client';
+import { getProblematicOrders, getDistributorInfo, getOrderStatus } from './bigquery-client';
 
 export const TOOLS: Anthropic.Tool[] = [
   {
@@ -178,25 +178,36 @@ export async function executeTool(name: string, input: Record<string, string>): 
   }
 
   if (name === 'check_order_status') {
-    const statuses = ['aguardando', 'enviado', 'faturado', 'cancelado'];
-    const distributors = ['Servimed', 'Panpharma', 'Solfarma', 'Santa Cruz', 'DF Farma'];
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
-    const distributor = distributors[Math.floor(Math.random() * distributors.length)];
-    const value = (Math.random() * 2000 + 200).toFixed(2);
-
+    const order = await getOrderStatus(input.order_id);
+    if (!order) {
+      return JSON.stringify({
+        found: false,
+        message: `Pedido ${input.order_id} não encontrado no BigQuery. Verifique se o ID está correto.`,
+      });
+    }
+    const statusLabel: Record<string, string> = {
+      Cancelled: 'Cancelado',
+      NotInvoiced: 'Não faturado',
+      WaitingInvoice: 'Aguardando faturamento',
+      Sending: 'Enviando (possível travamento)',
+      Invoiced: 'Faturado com sucesso',
+      Delivered: 'Entregue',
+    };
+    const label = statusLabel[order.status] || order.status;
+    const isProblematic = ['Cancelled','NotInvoiced','WaitingInvoice','Sending'].includes(order.status);
     return JSON.stringify({
-      order_id: input.order_id,
-      status,
-      distributor,
-      value: `R$ ${value}`,
-      updated_at: new Date().toISOString(),
-      message: status === 'aguardando'
-        ? 'Pedido aguardando confirmação da distribuidora'
-        : status === 'enviado'
-        ? 'Pedido enviado à distribuidora, aguardando faturamento'
-        : status === 'faturado'
-        ? 'Pedido faturado com sucesso'
-        : 'Pedido cancelado pela distribuidora',
+      found: true,
+      order_id: order.order_id,
+      nome: order.order_name,
+      cliente: order.client_name,
+      status: label,
+      distribuidora: order.distributor,
+      valor: order.total_brl,
+      criado: order.created_at,
+      atualizado: order.updated_at,
+      recomendacao: isProblematic
+        ? 'Pedido com problema. Considere rodar sync na distribuidora ou escalar para o time humano.'
+        : 'Pedido em ordem.',
     });
   }
 

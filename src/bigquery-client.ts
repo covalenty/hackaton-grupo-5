@@ -54,6 +54,60 @@ export async function getProblematicOrders(cnpj: string, limit = 5): Promise<Pro
   }
 }
 
+export interface OrderStatus {
+  order_id: string;
+  order_name: string;
+  status: string;
+  distributor: string;
+  total_brl: string;
+  created_at: string;
+  updated_at: string;
+  client_name: string;
+}
+
+export async function getOrderStatus(orderId: string): Promise<OrderStatus | null> {
+  try {
+    const [rows] = await bq.query({
+      query: `
+        SELECT
+          o.id AS order_id,
+          o.name AS order_name,
+          o.status,
+          COALESCE(
+            (SELECT STRING_AGG(DISTINCT d.distributor ORDER BY d.distributor)
+             FROM \`covalenty-prod.app_database_br.distributor_order\` d
+             WHERE d.order_id = o.id),
+            'N/A'
+          ) AS distributor,
+          ROUND(o.total_price_cents / 100.0, 2) AS total_brl,
+          FORMAT_TIMESTAMP('%d/%m/%Y %H:%M', o.created_at, 'America/Sao_Paulo') AS created_at,
+          FORMAT_TIMESTAMP('%d/%m/%Y %H:%M', o.updated_at, 'America/Sao_Paulo') AS updated_at,
+          COALESCE(c.name, c.fantasy_name, 'N/A') AS client_name
+        FROM \`covalenty-prod.app_database_br.order\` o
+        LEFT JOIN \`covalenty-prod.app_database_br.client\` c ON c.client_id = o.client_id
+        WHERE o.id = @orderId OR o.name = @orderId
+        LIMIT 1
+      `,
+      params: { orderId },
+    });
+    if (!rows.length) return null;
+    const r = rows[0];
+    return {
+      order_id: String(r.order_id),
+      order_name: r.order_name || `Pedido #${r.order_id}`,
+      status: r.status,
+      distributor: r.distributor,
+      total_brl: `R$ ${Number(r.total_brl).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+      client_name: r.client_name,
+    };
+  } catch (err) {
+    console.error('[BigQuery] getOrderStatus erro:', err);
+    return null;
+  }
+}
+
 export interface DistributorInfo {
   name: string;
   total_orders: number;

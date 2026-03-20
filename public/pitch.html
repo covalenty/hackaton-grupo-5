@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carla · Cienty AI — Hackathon 2026</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #0a0a0f; color: white; overflow-x: hidden; }
+
+    /* ===== SLIDES ===== */
+    .slide {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 60px 40px; position: relative; overflow: hidden;
+    }
+    .slide-inner { max-width: 1000px; width: 100%; text-align: center; z-index: 2; position: relative; }
+
+    /* BG gradients per slide */
+    .s1 { background: radial-gradient(ellipse at 50% 60%, #3b0764 0%, #0a0a0f 70%); }
+    .s2 { background: radial-gradient(ellipse at 30% 50%, #1e0a2e 0%, #0a0a0f 70%); }
+    .s3 { background: radial-gradient(ellipse at 70% 50%, #0a1628 0%, #0a0a0f 70%); }
+    .s4 { background: radial-gradient(ellipse at 50% 40%, #0f1a0f 0%, #0a0a0f 70%); }
+    .s5 { background: radial-gradient(ellipse at 50% 60%, #1a0a28 0%, #0a0a0f 70%); }
+    .s6 { background: radial-gradient(ellipse at 50% 50%, #1a1028 0%, #0a0a0f 70%); }
+
+    /* Glow orbs */
+    .orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.35; pointer-events: none; }
+    .orb1 { width: 500px; height: 500px; background: #c026d3; top: -100px; left: -100px; }
+    .orb2 { width: 400px; height: 400px; background: #7c3aed; bottom: -80px; right: -80px; }
+    .orb3 { width: 300px; height: 300px; background: #c026d3; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+
+    /* ===== TYPOGRAPHY ===== */
+    .tag { display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 20px; }
+    .tag-purple { background: rgba(192,38,211,0.2); color: #e879f9; border: 1px solid rgba(192,38,211,0.3); }
+    .tag-blue   { background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+    .tag-green  { background: rgba(34,197,94,0.2);  color: #86efac; border: 1px solid rgba(34,197,94,0.3); }
+
+    h1 { font-size: clamp(42px, 7vw, 88px); font-weight: 900; line-height: 1.0; letter-spacing: -2px; margin-bottom: 20px; }
+    h2 { font-size: clamp(32px, 5vw, 60px); font-weight: 900; line-height: 1.1; letter-spacing: -1px; margin-bottom: 16px; }
+    h3 { font-size: clamp(20px, 3vw, 32px); font-weight: 700; margin-bottom: 12px; }
+    .subtitle { font-size: clamp(16px, 2.5vw, 22px); color: rgba(255,255,255,0.55); line-height: 1.6; max-width: 700px; margin: 0 auto 40px; }
+    .grad { background: linear-gradient(135deg, #e879f9, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .grad2 { background: linear-gradient(135deg, #c026d3, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* ===== CARDS ===== */
+    .cards { display: grid; gap: 16px; margin-top: 40px; }
+    .cards-3 { grid-template-columns: repeat(3, 1fr); }
+    .cards-2 { grid-template-columns: repeat(2, 1fr); max-width: 700px; margin: 40px auto 0; }
+    .card {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px; padding: 24px; text-align: left; transition: border-color 0.2s;
+    }
+    .card:hover { border-color: rgba(192,38,211,0.4); }
+    .card-icon { font-size: 32px; margin-bottom: 12px; }
+    .card h4 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .card p { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.6; }
+    .card .stat { font-size: 36px; font-weight: 900; color: #e879f9; margin-bottom: 4px; }
+    .card .stat-label { font-size: 12px; color: rgba(255,255,255,0.4); }
+
+    /* ===== FLOW ===== */
+    .flow { display: flex; align-items: stretch; gap: 0; margin-top: 40px; justify-content: center; flex-wrap: wrap; gap: 8px; }
+    .flow-step {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; padding: 20px 22px; flex: 1; min-width: 180px; max-width: 220px; text-align: left;
+    }
+    .flow-step .level { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; opacity: 0.5; }
+    .flow-step h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .flow-step p { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.5; }
+    .flow-arrow { display: flex; align-items: center; color: rgba(255,255,255,0.2); font-size: 22px; padding: 0 4px; }
+    .level-1 { border-color: rgba(192,38,211,0.4); }
+    .level-2 { border-color: rgba(124,58,237,0.4); }
+    .level-3 { border-color: rgba(239,68,68,0.4); }
+
+    /* ===== CTA ===== */
+    .btn-cta {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 16px 36px; border-radius: 14px; font-size: 16px; font-weight: 700;
+      cursor: pointer; text-decoration: none; transition: all 0.2s; border: none;
+      background: linear-gradient(135deg, #c026d3, #7c3aed);
+      color: white; box-shadow: 0 8px 32px rgba(192,38,211,0.4);
+      margin: 8px;
+    }
+    .btn-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(192,38,211,0.5); }
+    .btn-outline {
+      background: transparent; border: 1px solid rgba(255,255,255,0.2); color: white;
+      box-shadow: none;
+    }
+    .btn-outline:hover { border-color: rgba(192,38,211,0.6); box-shadow: 0 4px 20px rgba(192,38,211,0.2); }
+
+    /* ===== METRICS ROW ===== */
+    .metrics { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; margin-top: 40px; }
+    .metric { text-align: center; }
+    .metric-val { font-size: clamp(36px, 6vw, 64px); font-weight: 900; background: linear-gradient(135deg, #e879f9, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .metric-label { font-size: 13px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+
+    /* ===== QUOTE ===== */
+    .quote-block { background: rgba(192,38,211,0.08); border: 1px solid rgba(192,38,211,0.2); border-radius: 16px; padding: 28px 32px; margin: 32px auto; max-width: 680px; }
+    .quote-block p { font-size: 18px; font-style: italic; color: rgba(255,255,255,0.8); line-height: 1.6; margin-bottom: 12px; }
+    .quote-block cite { font-size: 13px; color: rgba(255,255,255,0.4); }
+
+    /* ===== NAV ===== */
+    .nav-dots { position: fixed; right: 24px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 100; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2); cursor: pointer; transition: all 0.2s; border: none; }
+    .dot.active, .dot:hover { background: #c026d3; transform: scale(1.3); }
+
+    /* ===== CARLA HERO ===== */
+    .carla-badge {
+      display: inline-flex; align-items: center; gap: 12px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50px; padding: 10px 20px 10px 10px; margin-bottom: 32px;
+    }
+    .carla-av { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg,#c026d3,#7c3aed); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .carla-badge span { font-size: 14px; font-weight: 600; }
+    .online { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+    /* ===== TECH STACK ===== */
+    .tech-pills { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 28px; }
+    .pill { padding: 7px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); }
+
+    @media (max-width: 640px) {
+      .cards-3 { grid-template-columns: 1fr; }
+      .cards-2 { grid-template-columns: 1fr; }
+      .flow { flex-direction: column; align-items: center; }
+      .flow-arrow { transform: rotate(90deg); }
+      .metrics { gap: 24px; }
+      .slide { padding: 40px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav dots -->
+<div class="nav-dots">
+  <button class="dot active" onclick="goTo(0)"></button>
+  <button class="dot" onclick="goTo(1)"></button>
+  <button class="dot" onclick="goTo(2)"></button>
+  <button class="dot" onclick="goTo(3)"></button>
+  <button class="dot" onclick="goTo(4)"></button>
+  <button class="dot" onclick="goTo(5)"></button>
+</div>
+
+<!-- ===== SLIDE 1: HERO ===== -->
+<div class="slide s1" id="slide-0">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="slide-inner">
+    <div class="carla-badge">
+      <div class="carla-av">👩‍💼</div>
+      <span><span class="online"></span>Carla · Agente de Suporte Cienty</span>
+    </div>
+    <h1>Suporte inteligente.<br><span class="grad">Resolvido na hora.</span></h1>
+    <p class="subtitle">Uma IA que atende, resolve e aprende — para que a Carla e o time foquem no que realmente importa.</p>
+    <div>
+      <a href="/" class="btn-cta">Abrir aplicação →</a>
+      <button class="btn-cta btn-outline" onclick="goTo(1)">Ver o pitch ↓</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 2: PROBLEMA ===== -->
+<div class="slide s2" id="slide-1">
+  <div class="orb orb3" style="background:#7c3aed"></div>
+  <div class="slide-inner">
+    <div class="tag tag-purple">O Problema</div>
+    <h2>O suporte manual<br><span class="grad">não escala.</span></h2>
+    <p class="subtitle">Com milhares de farmácias na base, o time de CS da Cienty recebe centenas de tickets por semana sobre os mesmos problemas — e gasta horas respondendo manualmente.</p>
+    <div class="cards cards-3">
+      <div class="card">
+        <div class="stat">302</div>
+        <div class="stat-label">tickets por semana</div>
+        <p style="margin-top:10px">Maioria sobre erros de distribuidoras e status de pedidos</p>
+      </div>
+      <div class="card">
+        <div class="stat">67%</div>
+        <div class="stat-label">poderiam ser resolvidos sem humano</div>
+        <p style="margin-top:10px">São perguntas repetitivas com resposta padronizada</p>
+      </div>
+      <div class="card">
+        <div class="stat">3,2h</div>
+        <div class="stat-label">tempo médio de resposta hoje</div>
+        <p style="margin-top:10px">Cliente fica esperando enquanto o time trata outros tickets</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 3: SOLUÇÃO ===== -->
+<div class="slide s3" id="slide-2">
+  <div class="slide-inner">
+    <div class="tag tag-blue">A Solução</div>
+    <h2>Apresentamos a <span class="grad">Carla</span> 👩‍💼</h2>
+    <p class="subtitle">Agente de IA que atende clientes em tempo real via chat, WhatsApp e widget no site — resolvendo N1 e N2 automaticamente, escalando o N3 para o time humano com contexto completo.</p>
+    <div class="flow">
+      <div class="flow-step level-1">
+        <div class="level">Nível 1 · IA</div>
+        <h4>🤖 Carla responde</h4>
+        <p>Dúvidas, erros de distribuidora, status de pedido. Resolvido em segundos.</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step level-2">
+        <div class="level">Nível 2 · Humano + IA</div>
+        <h4>👩‍💼 Time assume</h4>
+        <p>Carla Feitosa entra com contexto completo. IA segue como copiloto sugerindo.</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step level-3">
+        <div class="level">Nível 3 · Tech</div>
+        <h4>📲 João recebe</h4>
+        <p>Resumo automático postado no #feedbacks do Slack. João resolve e alimenta a base.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 4: RESULTADOS ===== -->
+<div class="slide s4" id="slide-3">
+  <div class="orb orb2" style="background:#16a34a;bottom:-120px;right:-120px;"></div>
+  <div class="slide-inner">
+    <div class="tag tag-green">Resultados</div>
+    <h2>Impacto <span class="grad2">real</span> desde o dia 1</h2>
+    <p class="subtitle">Dados reais do Clint CRM e BigQuery integrados na plataforma.</p>
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-val">67%</div>
+        <div class="metric-label">dos tickets resolvidos<br>pela IA automaticamente</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val">3,2min</div>
+        <div class="metric-label">tempo médio de resolução<br>vs horas no manual</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val">48k+</div>
+        <div class="metric-label">clientes no pipeline<br>dados reais BigQuery</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val">24/7</div>
+        <div class="metric-label">disponível sem<br>custo adicional</div>
+      </div>
+    </div>
+    <div class="quote-block">
+      <p>"A Carla resolveu super rápido! O sync funcionou na hora, não precisei nem esperar o time."</p>
+      <cite>— Farmácia Bem Estar · cliente real</cite>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 5: COMO FUNCIONA ===== -->
+<div class="slide s5" id="slide-4">
+  <div class="orb orb1" style="width:400px;height:400px;top:auto;bottom:-100px;left:50%;transform:translateX(-50%)"></div>
+  <div class="slide-inner">
+    <div class="tag tag-purple">Como Funciona</div>
+    <h2>Um ecossistema<br><span class="grad">completo</span></h2>
+    <div class="cards cards-3" style="margin-top:32px">
+      <div class="card">
+        <div class="card-icon">💬</div>
+        <h4>CS Panel</h4>
+        <p>Painel da Carla com lista de clientes reais do Clint, Kanban por status, filtros por agente e dashboards em tempo real.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔌</div>
+        <h4>Widget no Site</h4>
+        <p>Uma linha de código para embedar no cienty.com. Balãozinho flutuante conectado diretamente ao agente IA.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📱</div>
+        <h4>WhatsApp Real</h4>
+        <p>Evolution API conectada ao número do Gus. Webhook ativo, 29k mensagens reais na base de conhecimento da Carla.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <h4>Pedidos no BigQuery</h4>
+        <p>Carla consulta os últimos pedidos problemáticos do cliente em tempo real: Cancelados, Travados, Não faturados.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🧠</div>
+        <h4>Sentimento Real por NLP</h4>
+        <p>Google Natural Language API classifica cada mensagem. Badge 😠/😊/😐 ao vivo no painel do agente.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📋</div>
+        <h4>Kanban + Canal</h4>
+        <p>Drag & drop por status. Tag 📱 WhatsApp / 💻 Web em cada conversa. Filtro por agente responsável.</p>
+      </div>
+    </div>
+    <div class="tech-pills">
+      <div class="pill">Claude Sonnet 4.6</div>
+      <div class="pill">Node.js + TypeScript</div>
+      <div class="pill">BigQuery real</div>
+      <div class="pill">Clint CRM</div>
+      <div class="pill">Slack API</div>
+      <div class="pill">Google Cloud Run</div>
+      <div class="pill">Google NLP</div>
+      <div class="pill">Evolution API</div>
+      <div class="pill">PWA Mobile</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 6: CTA FINAL ===== -->
+<div class="slide s6" id="slide-5">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="slide-inner">
+    <div class="carla-badge">
+      <div class="carla-av">👩‍💼</div>
+      <span>Grupo 5 · Hackathon Cienty 2026</span>
+    </div>
+    <h1><span class="grad">Carla está<br>online agora.</span></h1>
+    <p class="subtitle">Pronta para atender, resolver e aprender. Vamos ver ao vivo?</p>
+    <div>
+      <a href="/" class="btn-cta" style="font-size:18px;padding:18px 48px">
+        🚀 Abrir aplicação ao vivo
+      </a>
+    </div>
+    <div style="margin-top:48px;display:flex;gap:32px;justify-content:center;flex-wrap:wrap">
+      <div style="text-align:center">
+        <div style="font-size:24px;margin-bottom:4px">👩‍💼</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.4)">Carla Feitosa</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:24px;margin-bottom:4px">👨‍💻</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.4)">João</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:24px;margin-bottom:4px">👩‍🔬</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.4)">Mi</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:24px;margin-bottom:4px">🧑‍💼</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.4)">Lu</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:24px;margin-bottom:4px">👨‍💼</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.4)">Wesley</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dots = document.querySelectorAll('.dot');
+  let current = 0;
+
+  function goTo(n) {
+    current = n;
+    slides[n].scrollIntoView({ behavior: 'smooth' });
+    dots.forEach((d, i) => d.classList.toggle('active', i === n));
+  }
+
+  // Update active dot on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const idx = Array.from(slides).indexOf(e.target);
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+        current = idx;
+      }
+    });
+  }, { threshold: 0.5 });
+  slides.forEach(s => observer.observe(s));
+
+  // Keyboard navigation
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') goTo(Math.min(current + 1, slides.length - 1));
+    if (e.key === 'ArrowUp'   || e.key === 'ArrowLeft')  goTo(Math.max(current - 1, 0));
+  });
+</script>
+</body>
+</html>

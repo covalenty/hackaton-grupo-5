@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cienty · Cotação</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f6fa; color: #1a1a1a; }
+
+    .topbar { background: white; height: 56px; display: flex; align-items: center; padding: 0 24px; gap: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); position: fixed; top: 0; left: 220px; right: 0; z-index: 10; }
+    .topbar input { flex: 1; max-width: 400px; padding: 8px 14px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 14px; outline: none; }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .user-badge { font-size: 13px; font-weight: 500; color: #555; }
+
+    .sidebar { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: #1a1a2e; display: flex; flex-direction: column; padding-top: 16px; }
+    .sidebar-logo { padding: 8px 20px 24px; font-size: 20px; font-weight: 800; color: white; letter-spacing: -0.5px; }
+    .sidebar-logo span { color: #c026d3; }
+    .sidebar-section { padding: 0 12px; margin-bottom: 8px; }
+    .sidebar-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.8px; padding: 0 8px; margin-bottom: 4px; }
+    .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: rgba(255,255,255,0.65); font-size: 13px; cursor: pointer; margin-bottom: 2px; transition: background 0.1s; }
+    .sidebar-item:hover { background: rgba(255,255,255,0.08); color: white; }
+    .sidebar-item.active { background: rgba(192,38,211,0.25); color: #e879f9; font-weight: 600; }
+
+    .main { margin-left: 220px; padding: 72px 24px 24px; }
+
+    .alert { background: #fde68a; border-radius: 8px; padding: 10px 16px; font-size: 13px; color: #92400e; margin-bottom: 20px; }
+
+    .dist-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .dist-header h2 { font-size: 16px; font-weight: 700; }
+    .toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; }
+    .toggle-switch { width: 40px; height: 22px; background: #c026d3; border-radius: 11px; position: relative; cursor: pointer; }
+    .toggle-switch::after { content: ''; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 2px; right: 2px; }
+
+    .dist-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; scrollbar-width: thin; }
+    .dist-card { flex-shrink: 0; background: white; border-radius: 12px; padding: 14px 16px; min-width: 160px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .dist-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+    .dist-row { font-size: 12px; color: #666; display: flex; justify-content: space-between; margin-bottom: 3px; }
+    .dist-total { font-size: 13px; font-weight: 700; color: #1a1a1a; margin-top: 6px; }
+    .dist-link { font-size: 11px; color: #c026d3; cursor: pointer; margin-top: 4px; }
+
+    .actions { display: flex; gap: 10px; margin-bottom: 20px; }
+    .btn { padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
+    .btn-outline { background: white; border: 1px solid #e5e5e5; color: #333; }
+    .btn-primary { background: #c026d3; color: white; }
+    .btn-secondary { background: white; border: 1px solid #e5e5e5; color: #333; }
+    .btn-right { margin-left: auto; }
+
+    .table-wrap { background: white; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
+    .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table th { text-align: left; padding: 10px 14px; background: #f8f8f8; color: #888; font-weight: 600; font-size: 11px; text-transform: uppercase; }
+    .table td { padding: 12px 14px; border-top: 1px solid #f5f5f5; vertical-align: middle; }
+    .table input[type=checkbox] { width: 14px; height: 14px; }
+    .ean { color: #c026d3; font-size: 12px; }
+    .tag-best { background: #dcfce7; color: #16a34a; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+    .qty { display: flex; align-items: center; gap: 6px; }
+    .qty span { width: 16px; height: 16px; border-radius: 50%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; font-weight: 700; color: #666; }
+    select.dist-select { border: 1px solid #e5e5e5; border-radius: 6px; padding: 4px 8px; font-size: 12px; color: #333; }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .topbar { left: 0; }
+      .main { margin-left: 0; padding: 66px 12px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">c<span>²</span>enty</div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Menu</div>
+    <div class="sidebar-item active">📋 Cotação</div>
+    <div class="sidebar-item">🔍 Farejador</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Pedidos</div>
+    <div class="sidebar-item">🛒 Carrinho</div>
+    <div class="sidebar-item">📦 Meus Pedidos</div>
+    <div class="sidebar-item">🚫 Indisponíveis</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Conta</div>
+    <div class="sidebar-item">⚙️ Configurações</div>
+  </div>
+  <div class="sidebar-section" style="margin-top:auto;padding-bottom:20px">
+    <div class="sidebar-label">Admin</div>
+    <div class="sidebar-item">👥 Clientes</div>
+  </div>
+</div>
+
+<div class="topbar">
+  <input type="text" placeholder="Buscar produto..." />
+  <div class="topbar-right">
+    <div class="user-badge">Campfarma Extra Varejo Farmacêuti...</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="alert">⚠️ 12 distribuidoras não atingiram o mínimo. Clique em Complementar mínimo e confira produtos selecionados para atingir esse valor.</div>
+
+  <div class="dist-header">
+    <h2>Filtrar por distribuidora</h2>
+    <div class="toggle"><div class="toggle-switch"></div> Ocultar não usadas, inativas ou bloqueadas</div>
+  </div>
+
+  <div class="dist-scroll">
+    <div class="dist-card">
+      <h4>Servimed</h4>
+      <div class="dist-row"><span>Itens</span><span>4</span></div>
+      <div class="dist-row"><span>Desc. soma</span><span>6%</span></div>
+      <div class="dist-total">Total R$ 78,44</div>
+      <div class="dist-row"><span>Mínimo</span><span>R$ 160,00</span></div>
+      <div class="dist-row" style="color:#dc2626"><span>Falta</span><span>R$ 81,56</span></div>
+      <div class="dist-link">Complementar mínimo</div>
+    </div>
+    <div class="dist-card">
+      <h4>Panpharma</h4>
+      <div class="dist-row"><span>Itens</span><span>7</span></div>
+      <div class="dist-row"><span>Desc. soma</span><span>4%</span></div>
+      <div class="dist-total">Total R$ 350,96</div>
+      <div class="dist-row"><span>Mínimo</span><span>R$ 80,00</span></div>
+      <div class="dist-row" style="color:#16a34a"><span>Falta</span><span>R$ 0,00 ✓</span></div>
+      <div class="dist-link">Complementar mínimo</div>
+    </div>
+    <div class="dist-card">
+      <h4>Solfarma</h4>
+      <div class="dist-row"><span>Itens</span><span>2</span></div>
+      <div class="dist-row"><span>Desc. soma</span><span>3%</span></div>
+      <div class="dist-total">Total R$ 66,00</div>
+      <div class="dist-row"><span>Mínimo</span><span>R$ 170,00</span></div>
+      <div class="dist-row" style="color:#dc2626"><span>Falta</span><span>R$ 104,00</span></div>
+      <div class="dist-link">Complementar mínimo</div>
+    </div>
+    <div class="dist-card">
+      <h4>Santa Cruz</h4>
+      <div class="dist-row"><span>Itens</span><span>3</span></div>
+      <div class="dist-row"><span>Desc. soma</span><span>5%</span></div>
+      <div class="dist-total">Total R$ 122,30</div>
+      <div class="dist-row"><span>Mínimo</span><span>R$ 100,00</span></div>
+      <div class="dist-row" style="color:#16a34a"><span>Falta</span><span>R$ 0,00 ✓</span></div>
+      <div class="dist-link">Complementar mínimo</div>
+    </div>
+    <div class="dist-card">
+      <h4>Divamed</h4>
+      <div class="dist-row"><span>Itens</span><span>1</span></div>
+      <div class="dist-row"><span>Desc. soma</span><span>78%</span></div>
+      <div class="dist-total">Total R$ 3,89</div>
+      <div class="dist-row"><span>Mínimo</span><span>R$ 100,00</span></div>
+      <div class="dist-row" style="color:#dc2626"><span>Falta</span><span>R$ 96,11</span></div>
+      <div class="dist-link">Complementar mínimo</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-outline">✏️ Nova cotação</button>
+    <button class="btn btn-primary">🛒 Ir ao carrinho</button>
+    <button class="btn btn-secondary btn-right">⭐ Melhor preço</button>
+    <button class="btn btn-secondary">⚙️ Filtrar</button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th></th><th>EAN</th><th>Descrição</th><th>Fabricante</th>
+          <th>Quantidade</th><th>Preço</th><th>Distribuidora</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><input type="checkbox"></td>
+          <td><span class="ean">7896523207629</span></td>
+          <td>Aciclovir Creme 50mg/G 10gr</td>
+          <td>Cimed</td>
+          <td><div class="qty"><span>−</span>1<span>+</span></div></td>
+          <td>
+            <div style="font-size:11px;color:#888">Unitário R$ 3,89</div>
+            <div style="font-size:13px;font-weight:700">Preço final R$ 3,89</div>
+            <span class="tag-best">Melhor preço</span>
+          </td>
+          <td><select class="dist-select"><option>Divamed</option></select></td>
+          <td>🗑️</td>
+        </tr>
+        <tr>
+          <td><input type="checkbox"></td>
+          <td><span class="ean">7898655579933</span></td>
+          <td>Acetilcisteína 600 Mg C 16 Sachês 3 G Nac</td>
+          <td>Health Labs</td>
+          <td><div class="qty"><span>−</span>1<span>+</span></div></td>
+          <td>
+            <div style="font-size:11px;color:#888">Unitário R$ 22,54</div>
+            <div style="font-size:13px;font-weight:700">Preço final R$ 22,54</div>
+            <span class="tag-best">Melhor preço</span>
+          </td>
+          <td><select class="dist-select"><option>Stockfarma</option></select></td>
+          <td>🗑️</td>
+        </tr>
+        <tr>
+          <td><input type="checkbox"></td>
+          <td><span class="ean">7896269900150</span></td>
+          <td>Aerolin Spray 200 Doses</td>
+          <td>GSK</td>
+          <td><div class="qty"><span>−</span>1<span>+</span></div></td>
+          <td>
+            <div style="font-size:11px;color:#888">Unitário R$ 15,70</div>
+            <div style="font-size:13px;font-weight:700">Preço final R$ 15,70</div>
+          </td>
+          <td><select class="dist-select"><option>Drogacenter</option></select></td>
+          <td>🗑️</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Widget da Carla — embed com 1 linha -->
+<script src="/widget.js"></script>
+
+</body>
+</html>

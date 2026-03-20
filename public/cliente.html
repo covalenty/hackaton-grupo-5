@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cienty — Atendimento</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#c026d3">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cienty">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #c026d3, #9333ea);
+      color: white;
+      padding: 0;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+      z-index: 10;
+    }
+
+    .header-safe {
+      padding: env(safe-area-inset-top, 12px) 16px 0;
+    }
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0 14px;
+    }
+
+    .agent-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,.4);
+    }
+
+    .agent-info { flex: 1; min-width: 0; }
+    .agent-name { font-size: 16px; font-weight: 700; letter-spacing: -.2px; }
+    .agent-status {
+      font-size: 12px;
+      opacity: .85;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 1px;
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #4ade80;
+      animation: pulse-green 2s infinite;
+    }
+    @keyframes pulse-green { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .header-logo {
+      font-size: 13px;
+      font-weight: 700;
+      opacity: .7;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    /* ── Welcome screen ── */
+    #welcome-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      text-align: center;
+      background: #f0f2f5;
+    }
+
+    .welcome-avatar {
+      width: 88px; height: 88px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #c026d3, #9333ea);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 44px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 24px rgba(192,38,211,.35);
+    }
+
+    .welcome-title { font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+    .welcome-sub { font-size: 15px; color: #666; line-height: 1.5; max-width: 280px; margin-bottom: 32px; }
+
+    .quick-options { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px; }
+    .quick-btn {
+      background: white;
+      border: 1.5px solid #e8e8f0;
+      border-radius: 14px;
+      padding: 14px 18px;
+      text-align: left;
+      cursor: pointer;
+      transition: all .18s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: #333;
+      font-weight: 500;
+    }
+    .quick-btn:active { transform: scale(.98); background: #faf0ff; border-color: #c026d3; }
+    .quick-btn-icon { font-size: 20px; flex-shrink: 0; }
+    .quick-btn-text { flex: 1; }
+    .quick-btn-text strong { display: block; font-size: 14px; color: #1a1a2e; }
+    .quick-btn-text span { font-size: 12px; color: #888; }
+
+    .start-chat-btn {
+      margin-top: 20px;
+      background: linear-gradient(135deg, #c026d3, #9333ea);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      padding: 16px 32px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      max-width: 360px;
+      transition: opacity .15s, transform .15s;
+      box-shadow: 0 4px 16px rgba(192,38,211,.3);
+    }
+    .start-chat-btn:active { opacity: .88; transform: scale(.98); }
+
+    /* ── Chat screen ── */
+    #chat-screen {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Date separator */
+    .date-sep {
+      text-align: center;
+      font-size: 11px;
+      color: #aaa;
+      margin: 8px 0;
+      position: relative;
+    }
+    .date-sep span {
+      background: #f0f2f5;
+      padding: 0 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Bubbles */
+    .msg { display: flex; flex-direction: column; max-width: 78%; margin-bottom: 2px; }
+    .msg.bot { align-self: flex-start; }
+    .msg.user { align-self: flex-end; }
+
+    .bubble {
+      padding: 10px 13px;
+      border-radius: 18px;
+      font-size: 14.5px;
+      line-height: 1.45;
+      word-break: break-word;
+      white-space: pre-wrap;
+      position: relative;
+    }
+
+    .msg.bot .bubble {
+      background: white;
+      color: #1a1a1a;
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.08);
+    }
+
+    .msg.user .bubble {
+      background: linear-gradient(135deg, #c026d3, #9333ea);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .bubble-time {
+      font-size: 10.5px;
+      margin-top: 3px;
+      color: #bbb;
+    }
+    .msg.user .bubble-time { text-align: right; color: #b0a0c0; }
+
+    /* Typing indicator */
+    .typing-bubble {
+      display: none;
+      align-self: flex-start;
+      background: white;
+      border-radius: 18px;
+      border-bottom-left-radius: 4px;
+      padding: 12px 16px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.08);
+    }
+    .typing-bubble.show { display: flex; }
+    .typing-dots { display: flex; gap: 4px; align-items: center; }
+    .typing-dots span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #c026d3; opacity: .3;
+      animation: typing-bounce .9s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: .15s; }
+    .typing-dots span:nth-child(3) { animation-delay: .3s; }
+    @keyframes typing-bounce { 0%,60%,100%{opacity:.3;transform:translateY(0)} 30%{opacity:1;transform:translateY(-5px)} }
+
+    /* ── Input bar ── */
+    .input-bar {
+      background: white;
+      border-top: 1px solid #ebebeb;
+      padding: 10px 12px;
+      padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .input-wrap {
+      flex: 1;
+      background: #f0f2f5;
+      border-radius: 24px;
+      display: flex;
+      align-items: flex-end;
+      padding: 10px 16px;
+      min-height: 44px;
+    }
+
+    #msg-input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      font-size: 15px;
+      color: #1a1a1a;
+      resize: none;
+      max-height: 120px;
+      line-height: 1.4;
+      font-family: inherit;
+    }
+    #msg-input::placeholder { color: #bbb; }
+
+    .send-btn {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #c026d3, #9333ea);
+      color: white;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: transform .12s, opacity .12s;
+      box-shadow: 0 2px 8px rgba(192,38,211,.35);
+    }
+    .send-btn:active { transform: scale(.9); opacity: .85; }
+    .send-btn svg { width: 20px; height: 20px; fill: white; }
+
+    /* ── Quick replies (chips above input) ── */
+    .quick-replies {
+      display: flex;
+      gap: 8px;
+      padding: 8px 12px 0;
+      overflow-x: auto;
+      flex-shrink: 0;
+      scrollbar-width: none;
+      background: white;
+    }
+    .quick-replies::-webkit-scrollbar { display: none; }
+    .qr-chip {
+      background: #faf0ff;
+      border: 1.5px solid #e8d0f5;
+      border-radius: 20px;
+      padding: 7px 14px;
+      font-size: 13px;
+      color: #9333ea;
+      white-space: nowrap;
+      cursor: pointer;
+      flex-shrink: 0;
+      font-weight: 500;
+      transition: all .15s;
+    }
+    .qr-chip:active { background: #c026d3; color: white; border-color: #c026d3; }
+
+    /* System message */
+    .sys-msg {
+      text-align: center;
+      font-size: 12px;
+      color: #aaa;
+      padding: 4px 16px;
+      margin: 4px 0;
+    }
+
+    /* ── Utilities ── */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- Header (always visible) -->
+<div class="header">
+  <div class="header-safe">
+    <div class="header-content">
+      <div class="agent-avatar">👩‍💼</div>
+      <div class="agent-info">
+        <div class="agent-name">Carla · Cienty</div>
+        <div class="agent-status"><div class="status-dot"></div>Online agora</div>
+      </div>
+      <div class="header-logo">Cienty</div>
+    </div>
+  </div>
+</div>
+
+<!-- Welcome screen -->
+<div id="welcome-screen">
+  <div class="welcome-avatar">👩‍💼</div>
+  <div class="welcome-title">Oi! Sou a Carla</div>
+  <div class="welcome-sub">Assistente virtual da Cienty. Estou aqui para resolver suas dúvidas rapidinho.</div>
+
+  <div class="quick-options">
+    <button class="quick-btn" onclick="startWithTopic('Tenho um problema com meu pedido')">
+      <span class="quick-btn-icon">📦</span>
+      <div class="quick-btn-text">
+        <strong>Problema com pedido</strong>
+        <span>Pedido travado, atrasado ou com erro</span>
+      </div>
+    </button>
+    <button class="quick-btn" onclick="startWithTopic('A distribuidora sumiu do sistema')">
+      <span class="quick-btn-icon">🏭</span>
+      <div class="quick-btn-text">
+        <strong>Distribuidora sumiu</strong>
+        <span>Fornecedor não aparece mais</span>
+      </div>
+    </button>
+    <button class="quick-btn" onclick="startWithTopic('Estou vendo preço diferente do acordado')">
+      <span class="quick-btn-icon">💰</span>
+      <div class="quick-btn-text">
+        <strong>Preço diferente</strong>
+        <span>Valor diferente do contratado</span>
+      </div>
+    </button>
+    <button class="quick-btn" onclick="startWithTopic('Preciso de ajuda com o sistema')">
+      <span class="quick-btn-icon">💻</span>
+      <div class="quick-btn-text">
+        <strong>Dúvida no sistema</strong>
+        <span>Como usar a plataforma</span>
+      </div>
+    </button>
+  </div>
+
+  <button class="start-chat-btn" onclick="startChat()">Iniciar conversa</button>
+</div>
+
+<!-- Chat screen -->
+<div id="chat-screen">
+  <div class="messages" id="messages">
+    <div class="date-sep"><span>Hoje</span></div>
+    <div class="sys-msg">Carla entrou na conversa</div>
+  </div>
+
+  <div class="typing-bubble" id="typing">
+    <div class="typing-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <div class="quick-replies" id="quick-replies">
+    <div class="qr-chip" onclick="sendQuick('Qual o status do meu pedido?')">Status do pedido</div>
+    <div class="qr-chip" onclick="sendQuick('Preciso falar com um humano')">Falar com humano</div>
+    <div class="qr-chip" onclick="sendQuick('Como funciona a cotação?')">Como funciona?</div>
+    <div class="qr-chip" onclick="sendQuick('Problema com nota fiscal')">Nota fiscal</div>
+  </div>
+
+  <div class="input-bar">
+    <div class="input-wrap">
+      <textarea id="msg-input" placeholder="Mensagem..." rows="1"
+        oninput="autoResize(this)"
+        onkeydown="handleKey(event)"></textarea>
+    </div>
+    <button class="send-btn" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  const SESSION_ID = 'client_' + Math.random().toString(36).slice(2, 10);
+  let chatStarted = false;
+
+  function now() {
+    return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function startChat(firstMsg) {
+    document.getElementById('welcome-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display = 'flex';
+    chatStarted = true;
+    document.getElementById('msg-input').focus();
+
+    if (!firstMsg) {
+      // Greeting from Carla
+      setTimeout(() => addBotMsg('Oi! Eu sou a Carla, assistente virtual da Cienty. Como posso te ajudar hoje?'), 400);
+    }
+  }
+
+  function startWithTopic(topic) {
+    startChat(topic);
+    setTimeout(() => sendMsg(topic), 600);
+  }
+
+  function addBotMsg(text) {
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'msg bot';
+    div.innerHTML = `<div class="bubble">${escapeHtml(text).replace(/\n/g, '<br>')}</div><div class="bubble-time">${now()}</div>`;
+    msgs.appendChild(div);
+    scrollBottom();
+  }
+
+  function addUserMsg(text) {
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'msg user';
+    div.innerHTML = `<div class="bubble">${escapeHtml(text).replace(/\n/g, '<br>')}</div><div class="bubble-time">${now()}</div>`;
+    msgs.appendChild(div);
+    scrollBottom();
+    // Hide quick replies after first user message
+    document.getElementById('quick-replies').style.display = 'none';
+  }
+
+  function scrollBottom() {
+    const msgs = document.getElementById('messages');
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function showTyping() {
+    const t = document.getElementById('typing');
+    t.classList.add('show');
+    scrollBottom();
+  }
+
+  function hideTyping() {
+    document.getElementById('typing').classList.remove('show');
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  async function sendMsg(text) {
+    if (!text.trim()) return;
+    addUserMsg(text);
+    showTyping();
+    try {
+      const r = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: SESSION_ID, message: text })
+      });
+      const data = await r.json();
+      hideTyping();
+      addBotMsg(data.reply || 'Desculpe, não consegui processar sua mensagem.');
+    } catch {
+      hideTyping();
+      addBotMsg('Ops, tive um problema de conexão. Tente novamente!');
+    }
+  }
+
+  function sendMessage() {
+    const input = document.getElementById('msg-input');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    input.style.height = '';
+    if (!chatStarted) startChat();
+    sendMsg(text);
+  }
+
+  function sendQuick(text) {
+    if (!chatStarted) startChat();
+    sendMsg(text);
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+</script>
+</body>
+</html>

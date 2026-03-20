@@ -1,0 +1,36 @@
+{
+  "name": "grupo-5",
+  "version": "1.0.0",
+  "description": "Projeto desenvolvido durante o hackaton da Cienty.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "ts-node src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/covalenty/hackaton-grupo-5.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/covalenty/hackaton-grupo-5/issues"
+  },
+  "homepage": "https://github.com/covalenty/hackaton-grupo-5#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "@google-cloud/bigquery": "^8.1.1",
+    "@google-cloud/language": "^7.2.1",
+    "@slack/web-api": "^7.15.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.5.0",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

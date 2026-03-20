@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carla CS Panel · Cienty</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#c026d3" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Cienty CS" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; min-height: 100vh; }
+
+    .topbar { position: fixed; top: 0; left: 0; right: 0; background: white; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,0.08); z-index: 100; height: 56px; }
+    .logo { font-size: 20px; font-weight: 800; color: #1a1a1a; letter-spacing: -0.5px; flex-shrink: 0; }
+    .logo span { color: #c026d3; }
+    .tabs { display: flex; gap: 2px; }
+    .tab { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; color: #666; transition: all 0.15s; border: none; background: none; white-space: nowrap; }
+    .tab:hover { background: #f5e6fb; color: #c026d3; }
+    .tab.active { background: #c026d3; color: white; }
+    .badge { background: #c026d3; color: white; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; flex-shrink: 0; }
+
+    .page { display: none; padding: 56px 0 0; width: 100%; }
+    .page.active { display: block; }
+    .page-inner { padding: 20px; }
+
+    /* ===== CHAT PAGE ===== */
+    .chat-layout { display: flex; gap: 0; height: calc(100vh - 56px); background: white; overflow: hidden; }
+
+    /* Conversation list sidebar */
+    .conv-sidebar { width: 300px; flex-shrink: 0; border-right: 1px solid #f0f0f0; display: flex; flex-direction: column; }
+    .conv-sidebar-header { padding: 16px; border-bottom: 1px solid #f0f0f0; }
+    .conv-sidebar-header h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+    .cnpj-search { display: flex; gap: 6px; }
+    .cnpj-search input { flex: 1; padding: 7px 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 13px; outline: none; }
+    .cnpj-search input:focus { border-color: #c026d3; }
+    .cnpj-search button { padding: 7px 12px; background: #c026d3; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; }
+
+    .conv-list { flex: 1; overflow-y: auto; }
+    .conv-item { padding: 12px 16px; border-bottom: 1px solid #f8f8f8; cursor: pointer; transition: background 0.1s; }
+    .conv-item:hover { background: #fdf5ff; }
+    .conv-item.active { background: #f9e6fc; border-left: 3px solid #c026d3; }
+    .conv-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .conv-name { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+    .conv-time { font-size: 11px; color: #aaa; }
+    .conv-preview { font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conv-badges { display: flex; gap: 4px; margin-top: 4px; }
+    .conv-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+    .cb-open { background: #fef9c3; color: #ca8a04; }
+    .cb-resolved { background: #dcfce7; color: #16a34a; }
+    .cb-escalated { background: #fee2e2; color: #dc2626; }
+
+    /* Chat area */
+    .chat-main { flex: 1; display: flex; flex-direction: column; }
+    .chat-header { padding: 14px 20px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 10px; }
+    .chat-header-avatar { width: 36px; height: 36px; background: linear-gradient(135deg,#c026d3,#9333ea); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .chat-header h3 { font-size: 14px; font-weight: 700; }
+    .chat-header p { font-size: 12px; color: #888; }
+
+    .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; background: #fafafa; }
+    .message { display: flex; gap: 8px; max-width: 78%; }
+    .message.user { align-self: flex-end; flex-direction: row-reverse; }
+    .message.bot  { align-self: flex-start; }
+    .msg-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg,#c026d3,#9333ea); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; align-self: flex-end; }
+    .msg-bubble { padding: 9px 13px; border-radius: 14px; font-size: 14px; line-height: 1.5; }
+    .message.bot  .msg-bubble { background: white; border: 1px solid #eee; border-bottom-left-radius: 3px; color: #1a1a1a; }
+    .message.user .msg-bubble { background: #c026d3; color: white; border-bottom-right-radius: 3px; }
+    .msg-time { font-size: 11px; color: #bbb; margin-top: 3px; }
+    .message.user .msg-time { text-align: right; }
+
+    .typing-wrap { padding: 0 20px 8px; background: #fafafa; }
+    .typing-bubble { background: white; border: 1px solid #eee; border-radius: 14px; border-bottom-left-radius: 3px; padding: 10px 14px; display: none; width: fit-content; }
+    .typing-bubble span { display: inline-block; width: 7px; height: 7px; background: #c026d3; border-radius: 50%; margin: 0 2px; animation: bounce 1.2s infinite; }
+    .typing-bubble span:nth-child(2){animation-delay:.2s} .typing-bubble span:nth-child(3){animation-delay:.4s}
+    @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+    .suggestions { padding: 8px 16px; display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid #f0f0f0; }
+    .suggestion { padding: 5px 12px; background: #f9e6fc; border: 1px solid #e8c0f5; border-radius: 16px; font-size: 12px; color: #c026d3; cursor: pointer; font-weight: 500; }
+    .suggestion:hover { background: #f0c8fa; }
+
+    .input-area { padding: 12px 16px; border-top: 1px solid #f0f0f0; display: flex; gap: 8px; align-items: center; }
+    .input-area input { flex: 1; padding: 9px 14px; border: 1px solid #e5e5e5; border-radius: 20px; outline: none; font-size: 14px; }
+    .input-area input:focus { border-color: #c026d3; }
+    .send-btn { width: 38px; height: 38px; border-radius: 50%; border: none; background: #c026d3; color: white; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; }
+    .send-btn:disabled { background: #ddd; cursor: not-allowed; }
+
+    /* Right panel - client info */
+    .client-panel { width: 260px; flex-shrink: 0; border-left: 1px solid #f0f0f0; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+    .cp-section h4 { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .cp-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-bottom: 1px solid #f5f5f5; }
+    .cp-row:last-child { border-bottom: none; }
+    .cp-label { color: #888; } .cp-value { color: #1a1a1a; font-weight: 500; }
+    .dist-mini { font-size: 12px; padding: 6px 10px; background: #fafafa; border-radius: 8px; display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .ds-ok { color: #16a34a; font-weight: 600; } .ds-err { color: #dc2626; font-weight: 600; }
+
+    /* ===== DASHBOARDS ===== */
+    .card { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .dash-header h1 { font-size: 22px; font-weight: 800; color: #1a1a1a; }
+    .dash-header p { font-size: 14px; color: #888; margin-top: 2px; }
+    .period-filter { display: flex; gap: 6px; }
+    .period-btn { padding: 7px 16px; border-radius: 8px; border: 1px solid #e5e5e5; background: white; font-size: 13px; cursor: pointer; color: #666; }
+    .period-btn.active { background: #c026d3; color: white; border-color: #c026d3; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+    .kpi-card { background: white; border-radius: 14px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .kpi-label { font-size: 12px; color: #888; font-weight: 500; margin-bottom: 6px; }
+    .kpi-value { font-size: 28px; font-weight: 800; color: #1a1a1a; }
+    .kpi-sub { font-size: 12px; color: #888; margin-top: 2px; }
+    .kpi-card.highlight .kpi-value { color: #c026d3; }
+    .kpi-card.good .kpi-value { color: #16a34a; }
+    .kpi-card.warn .kpi-value { color: #d97706; }
+
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+    .chart-card { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .chart-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 16px; color: #333; }
+    .chart-card.full { grid-column: span 2; }
+
+    .sentiment-bar { display: flex; border-radius: 8px; overflow: hidden; height: 12px; margin: 8px 0; }
+    .s-pos { background: #16a34a; cursor: pointer; transition: opacity .15s; } .s-pos:hover { opacity: .8; }
+    .s-neu { background: #d97706; cursor: pointer; transition: opacity .15s; } .s-neu:hover { opacity: .8; }
+    .s-neg { background: #dc2626; cursor: pointer; transition: opacity .15s; } .s-neg:hover { opacity: .8; }
+    .sentiment-legend { display: flex; gap: 12px; margin-top: 8px; }
+    .s-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #555; cursor: pointer; }
+    .s-item:hover { text-decoration: underline; }
+    .s-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table th { text-align: left; padding: 10px 12px; background: #f8f8f8; color: #888; font-weight: 600; font-size: 11px; text-transform: uppercase; }
+    .table td { padding: 10px 12px; border-bottom: 1px solid #f5f5f5; color: #333; vertical-align: middle; }
+    .table tr:last-child td { border-bottom: none; }
+
+    .status-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .sb-resolved { background: #dcfce7; color: #16a34a; }
+    .sb-escalated { background: #fee2e2; color: #dc2626; }
+    .sb-open { background: #fef9c3; color: #ca8a04; }
+
+    .client-search { display: flex; gap: 10px; margin-bottom: 24px; }
+    .client-search input { flex: 1; padding: 10px 16px; border: 1px solid #e5e5e5; border-radius: 10px; font-size: 14px; outline: none; max-width: 400px; }
+    .client-search input:focus { border-color: #c026d3; }
+    .client-search button { padding: 10px 20px; background: #c026d3; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; }
+
+    .client-info { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .dist-list { display: flex; flex-direction: column; gap: 8px; }
+    .dist-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #fafafa; border-radius: 10px; font-size: 13px; }
+    .dist-status { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: white; border-radius: 16px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .modal-close { float: right; cursor: pointer; font-size: 20px; color: #aaa; border: none; background: none; }
+    .sentiment-detail-item { padding: 12px; border-radius: 10px; background: #fafafa; margin-bottom: 8px; border-left: 3px solid #dc2626; }
+    .sentiment-detail-item.positive { border-left-color: #16a34a; }
+    .sentiment-detail-item.neutral { border-left-color: #d97706; }
+    .sdi-top { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 6px; }
+    .sdi-msg { font-size: 13px; color: #333; font-style: italic; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ===== FILTERS ===== */
+    .conv-filters { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; display: flex; flex-direction: column; gap: 6px; }
+    .filter-row { display: flex; gap: 6px; }
+    .filter-select { flex: 1; padding: 5px 8px; border: 1px solid #e5e5e5; border-radius: 7px; font-size: 12px; outline: none; color: #333; background: white; }
+    .filter-select:focus { border-color: #c026d3; }
+
+    .conv-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .assignee-chip { font-size: 10px; padding: 1px 6px; background: #f3e8ff; color: #7c3aed; border-radius: 8px; font-weight: 600; }
+
+    /* ===== KANBAN ===== */
+    #page-kanban { display: none; }
+    #page-kanban.active { display: block; }
+    .kanban-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .kanban-toolbar h1 { font-size: 20px; font-weight: 800; flex: 1; }
+    .kanban-agent-filter { padding: 8px 14px; border: 1px solid #e5e5e5; border-radius: 10px; font-size: 13px; outline: none; min-width: 160px; }
+    .kanban-board { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 16px; align-items: flex-start; min-height: calc(100vh - 200px); }
+    .kanban-col { flex-shrink: 0; width: 240px; background: #f8f8fb; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 0; }
+    .kanban-col-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .kanban-col-title { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.4px; }
+    .kanban-count { font-size: 11px; font-weight: 700; background: rgba(0,0,0,0.08); color: #555; padding: 2px 8px; border-radius: 10px; }
+    .kanban-cards { display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
+    .kanban-card { background: white; border-radius: 10px; padding: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); cursor: grab; transition: box-shadow 0.15s, transform 0.15s; border-left: 3px solid #e5e5e5; }
+    .kanban-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.11); transform: translateY(-1px); }
+    .kanban-card.dragging { opacity: 0.4; transform: rotate(2deg); }
+    .kanban-col.drag-over .kanban-cards { background: #f0e6ff; border-radius: 8px; }
+    .kc-name { font-size: 13px; font-weight: 700; color: #1a1a1a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .kc-cnpj { font-size: 10px; color: #bbb; margin-bottom: 6px; }
+    .kc-preview { font-size: 11px; color: #888; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .kc-footer { display: flex; align-items: center; justify-content: space-between; }
+    .kc-assignee { font-size: 10px; color: #7c3aed; background: #f3e8ff; padding: 2px 7px; border-radius: 8px; font-weight: 600; }
+    .kc-time { font-size: 10px; color: #ccc; }
+
+    .cp-assign-section { display: flex; flex-direction: column; gap: 6px; }
+    .cp-select { width: 100%; padding: 7px 10px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 13px; outline: none; }
+    .cp-select:focus { border-color: #c026d3; }
+    .cp-save-btn { padding: 7px 14px; background: #c026d3; color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; width: 100%; }
+    .cp-save-btn:hover { background: #a21caf; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      .topbar { padding: 0 12px; height: 52px; }
+      .logo { font-size: 17px; }
+      .tab { padding: 6px 8px; font-size: 11px; }
+      .badge { display: none; }
+      .page { padding-top: 52px; }
+      .chat-layout { height: calc(100vh - 52px); }
+
+      /* Mobile chat: mostra sidebar ou chat, não os dois */
+      .conv-sidebar { width: 100%; border-right: none; }
+      .chat-main { display: none; width: 100%; }
+      .client-panel { display: none !important; }
+      .chat-layout.chat-open .conv-sidebar { display: none; }
+      .chat-layout.chat-open .chat-main { display: flex; }
+
+      .back-btn { display: flex !important; }
+
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid { grid-template-columns: 1fr; }
+      .chart-card.full { grid-column: span 1; }
+      .client-info { grid-template-columns: 1fr; }
+      .page-inner { padding: 14px; }
+      .dash-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .period-filter { flex-wrap: wrap; }
+      .table th:nth-child(1), .table td:nth-child(1) { display: none; }
+    }
+    @media (max-width: 480px) {
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+      .tab span.tab-label { display: none; }
+    }
+
+    .back-btn { display: none; align-items: center; justify-content: center; width: 32px; height: 32px; border: none; background: none; font-size: 20px; cursor: pointer; color: #c026d3; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">c<span>²</span>enty</div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('chat', this)">💬 Atendimentos</button>
+    <button class="tab" onclick="switchTab('kanban', this)">📋 Kanban</button>
+    <button class="tab" onclick="switchTab('general', this)">📊 Dashboard</button>
+    <button class="tab" onclick="switchTab('client', this)">👤 Cliente</button>
+  </div>
+  <div class="badge">✨ CS Panel</div>
+</div>
+
+<!-- ===== ATENDIMENTOS ===== -->
+<div id="page-chat" class="page active">
+  <div class="chat-layout">
+
+    <!-- Sidebar de conversas -->
+    <div class="conv-sidebar">
+      <div class="conv-sidebar-header">
+        <h3>Conversas</h3>
+        <div class="cnpj-search">
+          <input type="text" id="cnpj-search-input" placeholder="Buscar por CNPJ..." onkeydown="if(event.key==='Enter') applyFilters()" />
+          <button onclick="applyFilters()">🔍</button>
+        </div>
+      </div>
+      <div class="conv-filters">
+        <div class="filter-row">
+          <select class="filter-select" id="filter-status" onchange="applyFilters()">
+            <option value="all">Todos os status</option>
+            <option value="pending">Aguardando</option>
+            <option value="ai_active">Atendimento IA</option>
+            <option value="human_active">Atendimento Humano</option>
+            <option value="resolved_ai">Resolvido IA</option>
+            <option value="resolved_human">Resolvido Humano</option>
+          </select>
+        </div>
+        <div class="filter-row">
+          <select class="filter-select" id="filter-agent" onchange="applyFilters()">
+            <option value="all">Todos os agentes</option>
+          </select>
+        </div>
+      </div>
+      <div class="conv-list" id="conv-list"></div>
+    </div>
+
+    <!-- Chat principal -->
+    <div class="chat-main">
+      <div class="chat-header">
+        <button class="back-btn" onclick="goBackToList()">‹</button>
+        <div class="chat-header-avatar">👩‍💼</div>
+        <div>
+          <h3 id="chat-title">Carla · Suporte Cienty</h3>
+          <p id="chat-subtitle">Selecione uma conversa ou inicie um novo atendimento</p>
+        </div>
+      </div>
+
+      <div class="messages" id="messages">
+        <div class="message bot">
+          <div class="msg-avatar">👩‍💼</div>
+          <div>
+            <div class="msg-bubble">Olá! Sou a Carla, assistente de suporte da Cienty 👋<br><br>Posso verificar pedidos, resolver erros de distribuidoras e tirar dúvidas da plataforma. Como posso te ajudar hoje?</div>
+            <div class="msg-time">agora</div>
+          </div>
+        </div>
+      </div>
+      <div class="typing-wrap"><div class="typing-bubble" id="typing"><span></span><span></span><span></span></div></div>
+      <div class="suggestions">
+        <div class="suggestion" onclick="sendSuggestion(this)">Minha Servimed tá com erro</div>
+        <div class="suggestion" onclick="sendSuggestion(this)">Pedido travado em aguardando</div>
+        <div class="suggestion" onclick="sendSuggestion(this)">Preço diferente do PE</div>
+        <div class="suggestion" onclick="sendSuggestion(this)">Distribuidora sumiu da cotação</div>
+      </div>
+      <div class="input-area">
+        <input type="text" id="input" placeholder="Digite sua dúvida..." onkeydown="handleKey(event)" />
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+
+    <!-- Painel do cliente -->
+    <div class="client-panel" id="client-panel">
+      <div class="cp-section">
+        <h4>Atendimento</h4>
+        <div class="cp-assign-section">
+          <label style="font-size:11px;color:#aaa;font-weight:700;text-transform:uppercase">Responsável</label>
+          <select class="cp-select" id="cp-assignee-select">
+            <option value="">Sem responsável</option>
+          </select>
+          <label style="font-size:11px;color:#aaa;font-weight:700;text-transform:uppercase;margin-top:4px">Status</label>
+          <select class="cp-select" id="cp-status-select">
+            <option value="pending">Aguardando</option>
+            <option value="ai_active">Atendimento IA</option>
+            <option value="human_active">Atendimento Humano</option>
+            <option value="resolved_ai">Resolvido IA</option>
+            <option value="resolved_human">Resolvido Humano</option>
+          </select>
+          <button class="cp-save-btn" onclick="saveConvMeta()">Salvar</button>
+        </div>
+      </div>
+      <div class="cp-section">
+        <h4>Cliente</h4>
+        <div class="cp-row"><span class="cp-label">CNPJ</span><span class="cp-value" id="cp-cnpj">—</span></div>
+        <div class="cp-row"><span class="cp-label">Nome</span><span class="cp-value" id="cp-name">—</span></div>
+        <div class="cp-row"><span class="cp-label">Sentimento</span><span class="cp-value" id="cp-sentiment">—</span></div>
+        <div class="cp-row"><span class="cp-label">Pedidos</span><span class="cp-value" id="cp-tickets">—</span></div>
+      </div>
+      <div class="cp-section">
+        <h4>Distribuidoras</h4>
+        <div id="cp-distributors">
+          <div style="font-size:12px;color:#aaa">Selecione uma conversa</div>
+        </div>
+      </div>
+      <div class="cp-section">
+        <h4>Histórico</h4>
+        <div id="cp-history">
+          <div style="font-size:12px;color:#aaa">Nenhum histórico</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DASHBOARD GERAL ===== -->
+<div id="page-general" class="page">
+ <div class="page-inner">
+  <div class="dash-header">
+    <div><h1>Dashboard Geral</h1><p>Visão consolidada de todos os atendimentos</p></div>
+    <div class="period-filter">
+      <button class="period-btn active" onclick="setPeriod('today', this)">Hoje</button>
+      <button class="period-btn" onclick="setPeriod('week', this)">7 dias</button>
+      <button class="period-btn" onclick="setPeriod('month', this)">30 dias</button>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card highlight"><div class="kpi-label">Total de Tickets</div><div class="kpi-value" id="kpi-total">—</div><div class="kpi-sub">no período</div></div>
+    <div class="kpi-card good"><div class="kpi-label">Resolvidos pela IA</div><div class="kpi-value" id="kpi-resolved">—</div><div class="kpi-sub">sem intervenção humana</div></div>
+    <div class="kpi-card warn"><div class="kpi-label">Escalados</div><div class="kpi-value" id="kpi-escalated">—</div><div class="kpi-sub">para o time humano</div></div>
+    <div class="kpi-card good"><div class="kpi-label">Taxa de Resolução</div><div class="kpi-value" id="kpi-rate">—</div><div class="kpi-sub">autônoma</div></div>
+    <div class="kpi-card highlight"><div class="kpi-label">Tempo Médio</div><div class="kpi-value" id="kpi-time">—</div><div class="kpi-sub">para resolução</div></div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card"><h3>Principais Problemas <span style="font-size:11px;color:#888;font-weight:400">(dados reais · Clint CRM)</span></h3><canvas id="chart-problems" height="200"></canvas></div>
+    <div class="chart-card">
+      <h3>Análise de Sentimento <span style="font-size:11px;color:#888;font-weight:400">clique para detalhar</span></h3>
+      <div id="sentiment-section" style="padding-top:8px"></div>
+    </div>
+    <div class="chart-card full"><h3>Volume de Tickets por Dia</h3><canvas id="chart-volume" height="80"></canvas></div>
+  </div>
+
+  <div class="card" style="margin-bottom:24px">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">CRM Cienty — Pipeline de Clientes <span style="font-size:11px;color:#888;font-weight:400">(BigQuery · dados reais)</span></h3>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px" id="crm-summary"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">Últimas Escalações para o Time Humano</h3>
+    <table class="table">
+      <thead><tr><th>CNPJ</th><th>Cliente</th><th>Problema</th><th>Data</th><th>Hora</th><th>Sentimento</th></tr></thead>
+      <tbody id="escalations-table"></tbody>
+    </table>
+  </div>
+ </div>
+</div>
+
+<!-- ===== DASHBOARD CLIENTE ===== -->
+<div id="page-client" class="page">
+ <div class="page-inner">
+  <div class="dash-header"><div><h1>Dashboard Cliente</h1><p>Histórico e status individual por farmácia</p></div></div>
+  <div class="client-search">
+    <input type="text" id="cnpj-input" placeholder="Digite o CNPJ do cliente (ex: 12.345.678/0001-90)" onkeydown="if(event.key==='Enter') loadClientDashboard()" />
+    <button onclick="loadClientDashboard()">Buscar</button>
+  </div>
+  <div id="client-content" style="display:none">
+    <div class="client-info">
+      <div class="card">
+        <h3 style="font-size:13px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px">Resumo</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="kpi-card highlight" style="padding:14px"><div class="kpi-label">Tickets Total</div><div class="kpi-value" style="font-size:22px" id="c-total">—</div></div>
+          <div class="kpi-card good" style="padding:14px"><div class="kpi-label">Resolvidos</div><div class="kpi-value" style="font-size:22px" id="c-resolved">—</div></div>
+          <div class="kpi-card warn" style="padding:14px"><div class="kpi-label">Em Aberto</div><div class="kpi-value" style="font-size:22px" id="c-open">—</div></div>
+          <div class="kpi-card" style="padding:14px"><div class="kpi-label">Sentimento</div><div class="kpi-value" style="font-size:22px" id="c-sentiment">—</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="font-size:13px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px">Status das Distribuidoras</h3>
+        <div class="dist-list" id="dist-list"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">Histórico de Tickets</h3>
+      <table class="table">
+        <thead><tr><th>ID</th><th>Problema</th><th>Status</th><th>Data</th><th>Hora</th><th>Resolvido por</th></tr></thead>
+        <tbody id="client-tickets-table"></tbody>
+      </table>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ===== KANBAN ===== -->
+<div id="page-kanban" class="page">
+ <div class="page-inner">
+  <div class="kanban-toolbar">
+    <h1>📋 Kanban de Atendimentos</h1>
+    <select class="kanban-agent-filter" id="kanban-agent-filter" onchange="renderKanban()">
+      <option value="all">Todos os agentes</option>
+    </select>
+  </div>
+  <div class="kanban-board" id="kanban-board"></div>
+ </div>
+</div>
+
+<!-- Modal sentimento -->
+<div class="modal-overlay" id="sentiment-modal" onclick="if(event.target===this) closeSentimentModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeSentimentModal()">✕</button>
+    <h3 id="modal-title">Conversas</h3>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+  const sessionId = 'demo_' + Date.now();
+  let problemsChart = null, volumeChart = null;
+
+  // ===== AGENTS & STATUS =====
+  let allAgents = [];
+  let allConvs = [];
+  let selectedConvId = null;
+
+  const STATUS_META = {
+    pending:        { label: 'Aguardando',         bg: '#fef9c3', color: '#ca8a04', dot: '#ca8a04' },
+    ai_active:      { label: 'Atendimento IA',      bg: '#ede9fe', color: '#7c3aed', dot: '#7c3aed' },
+    human_active:   { label: 'Atendimento Humano',  bg: '#dbeafe', color: '#1d4ed8', dot: '#1d4ed8' },
+    resolved_ai:    { label: 'Resolvido IA',         bg: '#dcfce7', color: '#16a34a', dot: '#16a34a' },
+    resolved_human: { label: 'Resolvido Humano',     bg: '#d1fae5', color: '#059669', dot: '#059669' },
+  };
+
+  function statusBadge(status) {
+    const m = STATUS_META[status] || STATUS_META.pending;
+    return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;background:${m.bg};color:${m.color}">${m.label}</span>`;
+  }
+  function agentName(id) {
+    const a = allAgents.find(x => x.id === id);
+    return a ? a.name.split(' ')[0] : null;
+  }
+
+  async function initAgents() {
+    allAgents = await fetch('/api/agents').then(r => r.json());
+    ['filter-agent', 'cp-assignee-select', 'kanban-agent-filter'].forEach(selId => {
+      const sel = document.getElementById(selId);
+      if (!sel) return;
+      const defaultOpt = selId === 'cp-assignee-select' ? '<option value="">Sem responsável</option>' : '<option value="all">Todos os agentes</option>';
+      sel.innerHTML = defaultOpt + allAgents.map(a => `<option value="${a.id}">${a.avatar} ${a.name}</option>`).join('');
+    });
+  }
+
+  // ===== CONV LIST =====
+  function renderConvList(list) {
+    const el = document.getElementById('conv-list');
+    if (!list.length) { el.innerHTML = '<div style="padding:20px;color:#aaa;font-size:13px;text-align:center">Nenhuma conversa encontrada</div>'; return; }
+    el.innerHTML = list.map(c => {
+      const sm = STATUS_META[c.status] || STATUS_META.pending;
+      const agent = agentName(c.assignee);
+      return `
+      <div class="conv-item" onclick="selectConv('${c.id}', this)">
+        <div class="conv-item-top">
+          <div class="conv-name" style="display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:${sm.dot};flex-shrink:0"></span>
+            ${c.name}
+          </div>
+          <div class="conv-time">${c.time}</div>
+        </div>
+        <div class="conv-preview" style="font-size:11px;color:#bbb;margin-bottom:2px">${c.cnpj}</div>
+        <div class="conv-preview">${c.preview}</div>
+        <div class="conv-badges" style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap">
+          ${statusBadge(c.status)}
+          ${c.channel === 'whatsapp'
+            ? `<span class="conv-badge" style="background:#dcfce7;color:#15803d">📱 WhatsApp</span>`
+            : `<span class="conv-badge" style="background:#e0f2fe;color:#0369a1">💻 Web</span>`}
+          ${c.sentiment === 'negative' ? `<span class="conv-badge" style="background:#fee2e2;color:#dc2626">😠 Negativo</span>`
+            : c.sentiment === 'positive' ? `<span class="conv-badge" style="background:#dcfce7;color:#16a34a">😊 Positivo</span>`
+            : c.sentiment === 'neutral' ? `<span class="conv-badge" style="background:#fef9c3;color:#ca8a04">😐 Neutro</span>`
+            : ''}
+          ${agent ? `<span class="assignee-chip">${agent}</span>` : ''}
+          ${c.gmv ? `<span class="conv-badge" style="background:#f0fdf4;color:#16a34a">GMV ${c.gmv}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function loadConversations(params = {}) {
+    const el = document.getElementById('conv-list');
+    el.innerHTML = '<div style="padding:20px;color:#aaa;font-size:13px;text-align:center">Carregando...</div>';
+    const qs = new URLSearchParams(params).toString();
+    try {
+      const data = await fetch('/api/conversations' + (qs ? '?' + qs : '')).then(r => r.json());
+      allConvs = data;
+      renderConvList(data);
+    } catch {
+      el.innerHTML = '<div style="padding:20px;color:#dc2626;font-size:13px;text-align:center">Erro ao carregar</div>';
+    }
+  }
+
+  function applyFilters() {
+    const search = document.getElementById('cnpj-search-input').value.trim();
+    const status = document.getElementById('filter-status').value;
+    const assignee = document.getElementById('filter-agent').value;
+    const params = {};
+    if (search) params.search = search;
+    if (status !== 'all') params.status = status;
+    if (assignee !== 'all') params.assignee = assignee;
+    loadConversations(params);
+  }
+
+  function goBackToList() {
+    document.querySelector('.chat-layout').classList.remove('chat-open');
+  }
+
+  function selectConv(id, el) {
+    const c = allConvs.find(x => x.id === id);
+    if (!c) return;
+    selectedConvId = id;
+    document.querySelector('.chat-layout').classList.add('chat-open');
+    document.querySelectorAll('.conv-item').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('chat-title').textContent = c.name;
+    document.getElementById('chat-subtitle').textContent = c.cnpj;
+    document.getElementById('cp-cnpj').textContent = c.cnpj;
+    document.getElementById('cp-name').textContent = c.name;
+    const days = c.preview.match(/(\d+) dias/);
+    document.getElementById('cp-sentiment').textContent = days && parseInt(days[1]) > 15 ? '😠 Negativo' : c.stage === '< 7 dias pedidos' ? '😊 Positivo' : '😐 Neutro';
+    document.getElementById('cp-tickets').textContent = c.totalOrders || '—';
+    // Fill assignee/status selectors
+    document.getElementById('cp-assignee-select').value = c.assignee || '';
+    document.getElementById('cp-status-select').value = c.status || 'ai_active';
+    document.getElementById('cp-distributors').innerHTML = '<div style="font-size:11px;color:#aaa">Carregando...</div>';
+    document.getElementById('cp-history').innerHTML = `
+      <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444">GMV último mês: ${c.gmv || '—'}</div>
+      <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444">Total pedidos: ${c.totalOrders || '—'}</div>
+      <div style="font-size:12px;padding:5px 0;color:#444">Cidade: ${c.city || '—'}${c.state ? '/' + c.state : ''}</div>`;
+    fetch(`/api/dashboard/client?cnpj=${encodeURIComponent(c.cnpj)}`)
+      .then(r => r.json())
+      .then(data => {
+        const dists = data.distributors || [];
+        const errors = dists.filter(d => d.status !== 'conectada');
+        const ok = dists.filter(d => d.status === 'conectada');
+        const statusLabel = s => s === 'conectada' ? '<span class="ds-ok">OK</span>' : `<span class="ds-err">${s === 'erro_ao_conectar' ? 'Erro' : 'Desconectada'}</span>`;
+        const renderDist = d => `<div class="dist-mini"><span>${d.name}</span><div style="text-align:right">${statusLabel(d.status)}<br><span style="font-size:10px;color:#aaa">${d.last_sync}</span></div></div>`;
+        let html = '';
+        if (errors.length) html += `<div style="font-size:10px;font-weight:700;color:#dc2626;margin:4px 0 2px">⚠️ COM PROBLEMA (${errors.length})</div>` + errors.map(renderDist).join('');
+        if (ok.length) html += `<div style="font-size:10px;font-weight:700;color:#16a34a;margin:6px 0 2px">✅ CONECTADAS (${ok.length})</div>` + ok.map(renderDist).join('');
+        document.getElementById('cp-distributors').innerHTML = html || '<div style="font-size:11px;color:#aaa">Nenhuma distribuidora</div>';
+      }).catch(() => { document.getElementById('cp-distributors').innerHTML = '<div style="font-size:11px;color:#aaa">Sem dados</div>'; });
+  }
+
+  async function saveConvMeta() {
+    if (!selectedConvId) return;
+    const status = document.getElementById('cp-status-select').value;
+    const assignee = document.getElementById('cp-assignee-select').value || null;
+    await fetch(`/api/conversations/${selectedConvId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, assignee })
+    });
+    // Update local state
+    const c = allConvs.find(x => x.id === selectedConvId);
+    if (c) { c.status = status; c.assignee = assignee; }
+    renderConvList(allConvs);
+    // Re-select to refresh badge
+    const el = document.querySelector('.conv-item.active');
+    if (el) el.classList.add('active');
+  }
+
+  // ===== KANBAN =====
+  const KANBAN_COLS = [
+    { key: 'pending',        icon: '⏳' },
+    { key: 'ai_active',      icon: '🤖' },
+    { key: 'human_active',   icon: '👤' },
+    { key: 'resolved_ai',    icon: '✅' },
+    { key: 'resolved_human', icon: '🏆' },
+  ];
+
+  let kanbanConvs = [];
+
+  async function loadKanban() {
+    kanbanConvs = await fetch('/api/conversations').then(r => r.json());
+    renderKanban();
+  }
+
+  function renderKanban() {
+    const agentFilter = document.getElementById('kanban-agent-filter')?.value || 'all';
+    const data = agentFilter === 'all' ? kanbanConvs : kanbanConvs.filter(c => c.assignee === agentFilter);
+    const board = document.getElementById('kanban-board');
+    board.innerHTML = KANBAN_COLS.map(col => {
+      const sm = STATUS_META[col.key];
+      const cards = data.filter(c => (c.status || 'ai_active') === col.key);
+      return `
+        <div class="kanban-col" data-status="${col.key}"
+          ondragover="event.preventDefault();this.classList.add('drag-over')"
+          ondragleave="this.classList.remove('drag-over')"
+          ondrop="dropCard(event,'${col.key}')">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">${col.icon} ${sm.label}</span>
+            <span class="kanban-count">${cards.length}</span>
+          </div>
+          <div class="kanban-cards">
+            ${cards.map(c => `
+              <div class="kanban-card" draggable="true" data-id="${c.id}"
+                ondragstart="dragCard(event,'${c.id}')"
+                ondragend="this.classList.remove('dragging')"
+                style="border-left-color:${sm.dot}">
+                <div class="kc-name" title="${c.name}">${c.name}</div>
+                <div class="kc-cnpj">${c.cnpj}</div>
+                <div class="kc-preview">${c.preview}</div>
+                <div class="kc-footer">
+                  ${c.assignee ? `<span class="kc-assignee">${agentName(c.assignee) || c.assignee}</span>` : '<span style="font-size:10px;color:#ddd">Sem responsável</span>'}
+                  <span class="kc-time">${c.time}</span>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  let draggedId = null;
+  function dragCard(event, id) {
+    draggedId = id;
+    event.target.classList.add('dragging');
+  }
+  async function dropCard(event, newStatus) {
+    event.preventDefault();
+    document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
+    if (!draggedId) return;
+    await fetch(`/api/conversations/${draggedId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    });
+    const c = kanbanConvs.find(x => x.id === draggedId);
+    if (c) c.status = newStatus;
+    const ac = allConvs.find(x => x.id === draggedId);
+    if (ac) ac.status = newStatus;
+    renderKanban();
+    draggedId = null;
+  }
+
+  // ===== TABS =====
+  function switchTab(tab, btn) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('page-' + tab).classList.add('active');
+    btn.classList.add('active');
+    if (tab === 'general') loadGeneralDashboard('today');
+    if (tab === 'kanban') loadKanban();
+  }
+
+  // Chat
+  function getTime() { return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); }
+  function addMessage(text, type) {
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = `message ${type}`;
+    if (type === 'bot') div.innerHTML = `<div class="msg-avatar">👩‍💼</div><div><div class="msg-bubble">${text.replace(/\n/g,'<br>')}</div><div class="msg-time">${getTime()}</div></div>`;
+    else div.innerHTML = `<div><div class="msg-bubble">${text.replace(/\n/g,'<br>')}</div><div class="msg-time">${getTime()}</div></div>`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+  function setTyping(show) {
+    document.getElementById('typing').style.display = show ? 'block' : 'none';
+    document.getElementById('sendBtn').disabled = show;
+    document.getElementById('messages').scrollTop = 999999;
+  }
+  async function sendMessage() {
+    const input = document.getElementById('input');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    addMessage(text, 'user');
+    setTyping(true);
+    try {
+      const res = await fetch('/chat', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({session_id: sessionId, message: text}) });
+      const data = await res.json();
+      setTyping(false);
+      addMessage(data.reply || 'Erro.', 'bot');
+    } catch { setTyping(false); addMessage('Erro de conexão.', 'bot'); }
+  }
+  function sendSuggestion(el) { document.getElementById('input').value = el.textContent; sendMessage(); }
+  function handleKey(e) { if (e.key === 'Enter') sendMessage(); }
+
+  // Real sentiment details (from Slack + Google NLP)
+  let realSentimentDetails = null;
+
+  // General Dashboard
+  async function loadGeneralDashboard(period) {
+    const [dashRes, crmRes, sentRes] = await Promise.all([
+      fetch(`/api/dashboard/general?period=${period}`),
+      fetch('/api/crm/summary'),
+      fetch('/api/sentiment/real').catch(() => null)
+    ]);
+    const d = await dashRes.json();
+    const crm = await crmRes.json();
+    const sentReal = sentRes && sentRes.ok ? await sentRes.json() : null;
+
+    document.getElementById('kpi-total').textContent = d.summary.total_tickets;
+    document.getElementById('kpi-resolved').textContent = d.summary.resolved_autonomously;
+    document.getElementById('kpi-escalated').textContent = d.summary.escalated_to_human;
+    document.getElementById('kpi-rate').textContent = d.summary.resolution_rate + '%';
+    document.getElementById('kpi-time').textContent = d.summary.avg_resolution_time_min + ' min';
+
+    if (problemsChart) problemsChart.destroy();
+    problemsChart = new Chart(document.getElementById('chart-problems').getContext('2d'), {
+      type: 'bar',
+      data: { labels: d.top_problems.map(p => p.problem), datasets: [{ data: d.top_problems.map(p => p.count), backgroundColor: '#c026d3', borderRadius: 6 }] },
+      options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 } } } } }
+    });
+
+    // Use real Slack+NLP sentiment if available, fallback to mock
+    const useReal = sentReal && sentReal.source === 'real';
+    const s = useReal ? sentReal : d.sentiment;
+    if (useReal) realSentimentDetails = sentReal.details;
+
+    const sourceLabel = useReal
+      ? `<span style="font-size:11px;color:#16a34a;font-weight:600">● dados reais · Slack #feedbacks · Google NLP (${sentReal.total_messages} msgs)</span>`
+      : `<span style="font-size:11px;color:#888">dados simulados</span>`;
+
+    document.getElementById('sentiment-section').innerHTML = `
+      <div style="font-size:13px;color:#555;margin-bottom:6px">${sourceLabel}</div>
+      <div style="font-size:12px;color:#777;margin-bottom:8px">Clique em cada segmento para ver as mensagens</div>
+      <div class="sentiment-bar">
+        <div class="s-pos" style="width:${s.positive}%" onclick="openSentimentModal('positive')" title="Ver mensagens positivas"></div>
+        <div class="s-neu" style="width:${s.neutral}%" onclick="openSentimentModal('neutral')" title="Ver mensagens neutras"></div>
+        <div class="s-neg" style="width:${s.negative}%" onclick="openSentimentModal('negative')" title="Ver mensagens negativas"></div>
+      </div>
+      <div class="sentiment-legend">
+        <div class="s-item" onclick="openSentimentModal('positive')"><div class="s-dot" style="background:#16a34a"></div>Positivo ${s.positive}%</div>
+        <div class="s-item" onclick="openSentimentModal('neutral')"><div class="s-dot" style="background:#d97706"></div>Neutro ${s.neutral}%</div>
+        <div class="s-item" onclick="openSentimentModal('negative')"><div class="s-dot" style="background:#dc2626"></div>Negativo ${s.negative}%</div>
+      </div>
+      <div style="margin-top:20px"><canvas id="chart-sentiment" height="160"></canvas></div>`;
+
+    new Chart(document.getElementById('chart-sentiment').getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: ['Positivo','Neutro','Negativo'], datasets: [{ data: [s.positive,s.neutral,s.negative], backgroundColor: ['#16a34a','#d97706','#dc2626'], borderWidth: 0 }] },
+      options: { plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: (c) => ` ${c.label}: ${c.raw}%` } } }, cutout: '65%', onClick: (e,el) => { if(el[0]) { const types=['positive','neutral','negative']; openSentimentModal(types[el[0].index]); } } }
+    });
+
+    if (volumeChart) volumeChart.destroy();
+    volumeChart = new Chart(document.getElementById('chart-volume').getContext('2d'), {
+      type: 'line',
+      data: { labels: d.tickets_by_day.map(x=>x.day), datasets: [{ data: d.tickets_by_day.map(x=>x.count), borderColor:'#c026d3', backgroundColor:'rgba(192,38,211,0.08)', fill:true, tension:0.4, pointBackgroundColor:'#c026d3' }] },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+
+    // CRM Summary
+    document.getElementById('crm-summary').innerHTML = `
+      <div class="kpi-card highlight" style="padding:16px"><div class="kpi-label">Clientes Ativos</div><div class="kpi-value">${crm.crm.open.toLocaleString('pt-BR')}</div></div>
+      <div class="kpi-card good" style="padding:16px"><div class="kpi-label">Clientes Ganhos</div><div class="kpi-value">${crm.crm.won.toLocaleString('pt-BR')}</div></div>
+      <div class="kpi-card warn" style="padding:16px"><div class="kpi-label">Clientes Perdidos</div><div class="kpi-value">${crm.crm.lost.toLocaleString('pt-BR')}</div></div>`;
+
+    document.getElementById('escalations-table').innerHTML = d.recent_escalations.map(e => `
+      <tr>
+        <td>${e.cnpj}</td>
+        <td>${e.client}</td>
+        <td>${e.problem}</td>
+        <td><strong>${e.date}</strong></td>
+        <td>${e.time}</td>
+        <td>${e.sentiment === 'negative' ? '😠 Negativo' : e.sentiment === 'positive' ? '😊 Positivo' : '😐 Neutro'}</td>
+      </tr>`).join('');
+  }
+
+  async function openSentimentModal(type) {
+    const labels = { positive: '😊 Mensagens Positivas', neutral: '😐 Mensagens Neutras', negative: '😠 Mensagens Negativas' };
+    document.getElementById('modal-title').textContent = labels[type];
+
+    if (realSentimentDetails && realSentimentDetails[type]) {
+      // Real data from Slack + Google NLP
+      const items = realSentimentDetails[type];
+      document.getElementById('modal-content').innerHTML = items.length
+        ? items.map(i => `
+          <div class="sentiment-detail-item ${type}">
+            <div class="sdi-top"><span>#feedbacks · Slack</span><span>${i.date || '—'}</span></div>
+            <div class="sdi-msg">"${i.text}"</div>
+            <div style="font-size:11px;color:#aaa;margin-top:4px">score: ${(i.score||0).toFixed(2)} · magnitude: ${(i.magnitude||0).toFixed(2)}</div>
+          </div>`).join('')
+        : '<p style="color:#aaa;font-size:13px">Nenhuma mensagem nesta categoria</p>';
+    } else {
+      // Fallback to mock data
+      const res = await fetch(`/api/dashboard/sentiment-detail?type=${type}`);
+      const items = await res.json();
+      document.getElementById('modal-content').innerHTML = items.map(i => `
+        <div class="sentiment-detail-item ${type}">
+          <div class="sdi-top"><span>${i.cnpj} · ${i.client}</span><span>${i.date}</span></div>
+          <div class="sdi-msg">"${i.message}"</div>
+        </div>`).join('') || '<p style="color:#aaa;font-size:13px">Nenhuma conversa nesta categoria</p>';
+    }
+    document.getElementById('sentiment-modal').classList.add('open');
+  }
+
+  function closeSentimentModal() { document.getElementById('sentiment-modal').classList.remove('open'); }
+
+  function setPeriod(period, btn) {
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadGeneralDashboard(period);
+  }
+
+  // Client Dashboard
+  async function loadClientDashboard() {
+    const cnpj = document.getElementById('cnpj-input').value.trim();
+    if (!cnpj) return;
+    const res = await fetch(`/api/dashboard/client?cnpj=${encodeURIComponent(cnpj)}`);
+    const d = await res.json();
+    document.getElementById('client-content').style.display = 'block';
+    document.getElementById('c-total').textContent = d.summary.total_tickets;
+    document.getElementById('c-resolved').textContent = d.summary.resolved;
+    document.getElementById('c-open').textContent = d.summary.open;
+    document.getElementById('c-sentiment').textContent = d.summary.sentiment_label === 'positivo' ? '😊' : '😠';
+    document.getElementById('dist-list').innerHTML = d.distributors.map(dist => `
+      <div class="dist-item">
+        <span>${dist.name}</span>
+        <div class="dist-status ${dist.status==='conectada'?'ds-ok':'ds-err'}">
+          ${dist.status==='conectada'?'● Conectada':'● Erro'} · ${dist.last_sync}
+        </div>
+      </div>`).join('');
+    document.getElementById('client-tickets-table').innerHTML = d.recent_tickets.map(t => `
+      <tr>
+        <td>${t.id}</td>
+        <td>${t.problem}</td>
+        <td><span class="status-badge ${t.status==='resolvido'?'sb-resolved':t.status==='escalado'?'sb-escalated':'sb-open'}">${t.status}</span></td>
+        <td>${t.date || '—'}</td>
+        <td>${t.time || '—'}</td>
+        <td>${t.resolved_by==='agente'?'🤖 Agente IA':'👤 Humano'}</td>
+      </tr>`).join('');
+  }
+
+  // ===== BOOT =====
+  initAgents().then(() => loadConversations());
+</script>
+</body>
+</html>

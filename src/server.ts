@@ -7,9 +7,9 @@ import { setSlackKnowledge } from './agent';
 import { getGeneralDashboard, getClientDashboard } from './analytics';
 import { getCRMSummary, getStagesFunnel } from './bigquery-client';
 import { getConversations } from './clint-data';
-import { getConvMeta, setConvMeta, AGENTS, STATUS_LABELS } from './conv-store';
+import { getConvMeta, setConvMeta, AGENTS, STATUS_LABELS, getAllNps, addMessage, getMessages, getActiveSessions } from './conv-store';
 import { fetchSlackMessages } from './slack-client';
-import { analyzeMessages, analyzeSentiment } from './sentiment';
+import { analyzeMessages } from './sentiment';
 
 const app = express();
 app.use(express.json());
@@ -45,8 +45,8 @@ async function fetchWhatsAppMessages(limit = 20): Promise<string> {
 async function init() {
   console.log('[Init] Carregando base de conhecimento do Slack...');
   const [slackData, waData] = await Promise.all([
-    fetchFeedbacksFromSlack(200),
-    fetchWhatsAppMessages(20),
+    fetchFeedbacksFromSlack(30),
+    fetchWhatsAppMessages(10),
   ]);
   const combined = [slackData, waData].filter(Boolean).join('\n');
   setSlackKnowledge(combined);
@@ -61,11 +61,9 @@ app.post('/chat', async (req, res) => {
   try {
     const ch: 'web' | 'whatsapp' = channel === 'whatsapp' ? 'whatsapp' : 'web';
     setConvMeta(session_id, { channel: ch });
-    // Analisa sentimento da mensagem em background (não bloqueia resposta)
-    analyzeSentiment(message).then(s => {
-      setConvMeta(session_id, { sentiment: s.label, sentimentScore: s.score });
-    }).catch(() => {});
+    addMessage(session_id, 'user', message);
     const reply = await chat(session_id, message, ch);
+    addMessage(session_id, 'bot', reply);
     return res.json({ reply });
   } catch (err) {
     console.error(err);
@@ -128,10 +126,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
   const from = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
   console.log(`[WhatsApp] recebido de ${from}: ${text}`);
   setConvMeta(remoteJid, { channel: 'whatsapp' });
-  // Analisa sentimento em background
-  analyzeSentiment(text).then(s => {
-    setConvMeta(remoteJid, { sentiment: s.label, sentimentScore: s.score });
-  }).catch(() => {});
+  addMessage(remoteJid, 'user', text);
 
   // Respostas automáticas desabilitadas por enquanto
   if (process.env.WHATSAPP_REPLY_ENABLED !== 'true') {
@@ -145,6 +140,16 @@ app.post('/webhook/whatsapp', async (req, res) => {
   } catch (err) {
     console.error('[WhatsApp] Erro:', err);
   }
+});
+
+// Sessões ativas (web + whatsapp) com histórico de mensagens
+app.get('/api/sessions', (_req, res) => {
+  return res.json(getActiveSessions());
+});
+
+app.get('/api/sessions/:id/messages', (req, res) => {
+  const id = decodeURIComponent(req.params.id);
+  return res.json(getMessages(id));
 });
 
 app.get('/api/conversations', (req, res) => {
@@ -172,18 +177,24 @@ let sentimentCache: any = null;
 let sentimentCacheAt = 0;
 
 app.get('/api/sentiment/real', async (_req, res) => {
-  // Cache de 10 minutos
   if (sentimentCache && Date.now() - sentimentCacheAt < 10 * 60 * 1000) {
     return res.json(sentimentCache);
   }
   try {
-    const messages = await fetchSlackMessages(80);
-    if (!messages.length) {
-      return res.json({ error: 'no_messages', source: 'slack_empty' });
+    // Usa mensagens do WhatsApp como fonte primária, Slack como fallback
+    let messages: { text: string; meta: any }[] = [];
+    const waMsgs = await fetchWhatsAppMessages(50);
+    if (waMsgs) {
+      messages = waMsgs.split('\n')
+        .filter(l => l.startsWith('- ') && l.length > 12)
+        .map(l => ({ text: l.slice(2), meta: { source: 'WhatsApp' } }));
     }
-    const result = await analyzeMessages(
-      messages.map(m => ({ text: m.text, meta: { date: m.date, source: '#feedbacks' } }))
-    );
+    if (messages.length < 10) {
+      const slackMsgs = await fetchSlackMessages(60);
+      messages = messages.concat(slackMsgs.map(m => ({ text: m.text, meta: { date: m.date, source: '#feedbacks' } })));
+    }
+    if (!messages.length) return res.json({ error: 'no_messages' });
+    const result = await analyzeMessages(messages);
     sentimentCache = { ...result, source: 'real', total_messages: messages.length };
     sentimentCacheAt = Date.now();
     return res.json(sentimentCache);
@@ -191,6 +202,27 @@ app.get('/api/sentiment/real', async (_req, res) => {
     console.error('[Sentiment]', err.message);
     return res.status(500).json({ error: err.message });
   }
+});
+
+// NPS endpoints
+app.post('/api/nps', (req, res) => {
+  const { session_id, score } = req.body;
+  if (!session_id || typeof score !== 'number' || score < 1 || score > 10) {
+    return res.status(400).json({ error: 'session_id e score (1-10) obrigatórios' });
+  }
+  setConvMeta(session_id, { nps: score });
+  return res.json({ ok: true });
+});
+
+app.get('/api/nps/summary', (_req, res) => {
+  const scores = getAllNps();
+  if (!scores.length) return res.json({ avg: null, total: 0, promoters: 0, detractors: 0, passive: 0, nps: null });
+  const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+  const promoters = scores.filter(s => s >= 9).length;
+  const detractors = scores.filter(s => s <= 6).length;
+  const passive = scores.filter(s => s === 7 || s === 8).length;
+  const nps = Math.round(((promoters - detractors) / scores.length) * 100);
+  return res.json({ avg: avg.toFixed(1), total: scores.length, promoters, detractors, passive, nps });
 });
 
 app.get('/api/agents', (_req, res) => res.json(AGENTS));

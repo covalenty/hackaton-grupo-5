@@ -375,6 +375,7 @@
     <div class="kpi-card warn"><div class="kpi-label">Escalados</div><div class="kpi-value" id="kpi-escalated">—</div><div class="kpi-sub">para o time humano</div></div>
     <div class="kpi-card good"><div class="kpi-label">Taxa de Resolução</div><div class="kpi-value" id="kpi-rate">—</div><div class="kpi-sub">autônoma</div></div>
     <div class="kpi-card highlight"><div class="kpi-label">Tempo Médio</div><div class="kpi-value" id="kpi-time">—</div><div class="kpi-sub">para resolução</div></div>
+    <div class="kpi-card" id="nps-kpi-card"><div class="kpi-label">NPS Score</div><div class="kpi-value" id="kpi-nps" style="font-size:28px">—</div><div class="kpi-sub" id="kpi-nps-sub">aguardando avaliações</div></div>
   </div>
 
   <div class="charts-grid">
@@ -517,8 +518,8 @@
           ${c.channel === 'whatsapp'
             ? `<span class="conv-badge" style="background:#dcfce7;color:#15803d">📱 WhatsApp</span>`
             : `<span class="conv-badge" style="background:#e0f2fe;color:#0369a1">💻 Web</span>`}
-          ${c.sentiment === 'negative' ? `<span class="conv-badge" style="background:#fee2e2;color:#dc2626">😠 Negativo</span>`
-            : c.sentiment === 'positive' ? `<span class="conv-badge" style="background:#dcfce7;color:#16a34a">😊 Positivo</span>`
+          ${c.sentiment === 'negative' ? `<span class="conv-badge" style="background:#fee2e2;color:#dc2626">😞 Insatisfeito</span>`
+            : c.sentiment === 'positive' ? `<span class="conv-badge" style="background:#dcfce7;color:#16a34a">😊 Satisfeito</span>`
             : c.sentiment === 'neutral' ? `<span class="conv-badge" style="background:#fef9c3;color:#ca8a04">😐 Neutro</span>`
             : ''}
           ${agent ? `<span class="assignee-chip">${agent}</span>` : ''}
@@ -533,13 +534,54 @@
     el.innerHTML = '<div style="padding:20px;color:#aaa;font-size:13px;text-align:center">Carregando...</div>';
     const qs = new URLSearchParams(params).toString();
     try {
-      const data = await fetch('/api/conversations' + (qs ? '?' + qs : '')).then(r => r.json());
-      allConvs = data;
-      renderConvList(data);
+      const [crmData, sessions] = await Promise.all([
+        fetch('/api/conversations' + (qs ? '?' + qs : '')).then(r => r.json()),
+        fetch('/api/sessions').then(r => r.json()).catch(() => [])
+      ]);
+
+      // Sessões ativas: converte para formato compatível com allConvs
+      const sessionConvs = sessions.map(s => ({
+        id: s.id,
+        name: s.name,
+        cnpj: s.channel === 'whatsapp' ? s.id.replace('@s.whatsapp.net','') : '—',
+        preview: s.preview,
+        time: s.time,
+        channel: s.channel,
+        status: s.meta.status,
+        assignee: s.meta.assignee,
+        sentiment: s.meta.sentiment,
+        nps: s.meta.nps,
+        isLive: true,
+        messages: s.messages,
+      }));
+
+      // Filtra do CRM os que já estão como sessão ativa
+      const sessionIds = new Set(sessionConvs.map(s => s.id));
+      const filtered = crmData.filter(c => !sessionIds.has(c.id));
+
+      allConvs = [...sessionConvs, ...filtered];
+      renderConvList(allConvs);
     } catch {
       el.innerHTML = '<div style="padding:20px;color:#dc2626;font-size:13px;text-align:center">Erro ao carregar</div>';
     }
   }
+
+  // Auto-refresh a cada 5s para pegar novas mensagens
+  setInterval(() => {
+    if (document.getElementById('page-chat').classList.contains('active')) {
+      loadConversations();
+      // Refresh messages of currently selected live session
+      if (selectedConvId) {
+        const c = allConvs.find(x => x.id === selectedConvId);
+        if (c && c.isLive) {
+          fetch(`/api/sessions/${encodeURIComponent(selectedConvId)}/messages`)
+            .then(r => r.json())
+            .then(msgs => renderLiveMessages(msgs))
+            .catch(() => {});
+        }
+      }
+    }
+  }, 5000);
 
   function applyFilters() {
     const search = document.getElementById('cnpj-search-input').value.trim();
@@ -556,6 +598,27 @@
     document.querySelector('.chat-layout').classList.remove('chat-open');
   }
 
+  function renderLiveMessages(messages) {
+    const wrap = document.getElementById('messages');
+    if (!messages || !messages.length) {
+      wrap.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Sem mensagens ainda</div>';
+      return;
+    }
+    wrap.innerHTML = messages.map(m => {
+      const isBot = m.role === 'bot';
+      const time = new Date(m.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      return `<div class="message ${isBot ? 'bot' : 'user'}">
+        ${isBot ? '<div class="msg-avatar">👩‍💼</div>' : ''}
+        <div>
+          <div class="msg-bubble">${m.text.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</div>
+          <div class="msg-time">${time}</div>
+        </div>
+        ${!isBot ? '<div class="msg-avatar" style="order:2">👤</div>' : ''}
+      </div>`;
+    }).join('');
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
   function selectConv(id, el) {
     const c = allConvs.find(x => x.id === id);
     if (!c) return;
@@ -563,34 +626,56 @@
     document.querySelector('.chat-layout').classList.add('chat-open');
     document.querySelectorAll('.conv-item').forEach(e => e.classList.remove('active'));
     el.classList.add('active');
-    document.getElementById('chat-title').textContent = c.name;
+
+    const channelTag = c.channel === 'whatsapp' ? ' 📱 WhatsApp' : c.channel === 'web' ? ' 💬 Web' : '';
+    document.getElementById('chat-title').textContent = c.name + channelTag;
     document.getElementById('chat-subtitle').textContent = c.cnpj;
     document.getElementById('cp-cnpj').textContent = c.cnpj;
     document.getElementById('cp-name').textContent = c.name;
-    const days = c.preview.match(/(\d+) dias/);
-    document.getElementById('cp-sentiment').textContent = days && parseInt(days[1]) > 15 ? '😠 Negativo' : c.stage === '< 7 dias pedidos' ? '😊 Positivo' : '😐 Neutro';
-    document.getElementById('cp-tickets').textContent = c.totalOrders || '—';
-    // Fill assignee/status selectors
     document.getElementById('cp-assignee-select').value = c.assignee || '';
     document.getElementById('cp-status-select').value = c.status || 'ai_active';
-    document.getElementById('cp-distributors').innerHTML = '<div style="font-size:11px;color:#aaa">Carregando...</div>';
-    document.getElementById('cp-history').innerHTML = `
-      <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444">GMV último mês: ${c.gmv || '—'}</div>
-      <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444">Total pedidos: ${c.totalOrders || '—'}</div>
-      <div style="font-size:12px;padding:5px 0;color:#444">Cidade: ${c.city || '—'}${c.state ? '/' + c.state : ''}</div>`;
-    fetch(`/api/dashboard/client?cnpj=${encodeURIComponent(c.cnpj)}`)
-      .then(r => r.json())
-      .then(data => {
-        const dists = data.distributors || [];
-        const errors = dists.filter(d => d.status !== 'conectada');
-        const ok = dists.filter(d => d.status === 'conectada');
-        const statusLabel = s => s === 'conectada' ? '<span class="ds-ok">OK</span>' : `<span class="ds-err">${s === 'erro_ao_conectar' ? 'Erro' : 'Desconectada'}</span>`;
-        const renderDist = d => `<div class="dist-mini"><span>${d.name}</span><div style="text-align:right">${statusLabel(d.status)}<br><span style="font-size:10px;color:#aaa">${d.last_sync}</span></div></div>`;
-        let html = '';
-        if (errors.length) html += `<div style="font-size:10px;font-weight:700;color:#dc2626;margin:4px 0 2px">⚠️ COM PROBLEMA (${errors.length})</div>` + errors.map(renderDist).join('');
-        if (ok.length) html += `<div style="font-size:10px;font-weight:700;color:#16a34a;margin:6px 0 2px">✅ CONECTADAS (${ok.length})</div>` + ok.map(renderDist).join('');
-        document.getElementById('cp-distributors').innerHTML = html || '<div style="font-size:11px;color:#aaa">Nenhuma distribuidora</div>';
-      }).catch(() => { document.getElementById('cp-distributors').innerHTML = '<div style="font-size:11px;color:#aaa">Sem dados</div>'; });
+
+    if (c.isLive) {
+      // Live session: show real chat messages
+      const npsLabel = c.nps ? (c.nps >= 9 ? '😊 Satisfeito' : c.nps <= 6 ? '😞 Insatisfeito' : '😐 Neutro') : '—';
+      document.getElementById('cp-sentiment').textContent = npsLabel;
+      document.getElementById('cp-tickets').textContent = c.messages ? c.messages.length + ' msgs' : '—';
+      document.getElementById('cp-distributors').innerHTML = '<div style="font-size:11px;color:#aaa">Sessão ao vivo</div>';
+      document.getElementById('cp-history').innerHTML = `
+        <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444">Canal: ${c.channel || '—'}</div>
+        <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444">NPS: ${c.nps || '—'}</div>
+        <div style="font-size:12px;padding:5px 0;color:#444">Sessão: ${id.slice(-8)}</div>`;
+      // Fetch latest messages from server
+      fetch(`/api/sessions/${encodeURIComponent(id)}/messages`)
+        .then(r => r.json())
+        .then(msgs => renderLiveMessages(msgs))
+        .catch(() => renderLiveMessages(c.messages || []));
+    } else {
+      // CRM conversation: show history data
+      const days = c.preview ? c.preview.match(/(\d+) dias/) : null;
+      document.getElementById('cp-sentiment').textContent = days && parseInt(days[1]) > 15 ? '😠 Insatisfeito' : c.stage === '< 7 dias pedidos' ? '😊 Satisfeito' : '😐 Neutro';
+      document.getElementById('cp-tickets').textContent = c.totalOrders || '—';
+      document.getElementById('cp-distributors').innerHTML = '<div style="font-size:11px;color:#aaa">Carregando...</div>';
+      document.getElementById('cp-history').innerHTML = `
+        <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444">GMV último mês: ${c.gmv || '—'}</div>
+        <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444">Total pedidos: ${c.totalOrders || '—'}</div>
+        <div style="font-size:12px;padding:5px 0;color:#444">Cidade: ${c.city || '—'}${c.state ? '/' + c.state : ''}</div>`;
+      // Reset messages panel to default
+      document.getElementById('messages').innerHTML = `<div class="message bot"><div class="msg-avatar">👩‍💼</div><div><div class="msg-bubble">Olá! Sou a Carla, assistente de suporte da Cienty 👋<br><br>Selecione uma sessão ao vivo para ver as mensagens em tempo real.</div><div class="msg-time">agora</div></div></div>`;
+      fetch(`/api/dashboard/client?cnpj=${encodeURIComponent(c.cnpj)}`)
+        .then(r => r.json())
+        .then(data => {
+          const dists = data.distributors || [];
+          const errors = dists.filter(d => d.status !== 'conectada');
+          const ok = dists.filter(d => d.status === 'conectada');
+          const statusLabel = s => s === 'conectada' ? '<span class="ds-ok">OK</span>' : `<span class="ds-err">${s === 'erro_ao_conectar' ? 'Erro' : 'Desconectada'}</span>`;
+          const renderDist = d => `<div class="dist-mini"><span>${d.name}</span><div style="text-align:right">${statusLabel(d.status)}<br><span style="font-size:10px;color:#aaa">${d.last_sync}</span></div></div>`;
+          let html = '';
+          if (errors.length) html += `<div style="font-size:10px;font-weight:700;color:#dc2626;margin:4px 0 2px">⚠️ COM PROBLEMA (${errors.length})</div>` + errors.map(renderDist).join('');
+          if (ok.length) html += `<div style="font-size:10px;font-weight:700;color:#16a34a;margin:6px 0 2px">✅ CONECTADAS (${ok.length})</div>` + ok.map(renderDist).join('');
+          document.getElementById('cp-distributors').innerHTML = html || '<div style="font-size:11px;color:#aaa">Nenhuma distribuidora</div>';
+        }).catch(() => { document.getElementById('cp-distributors').innerHTML = '<div style="font-size:11px;color:#aaa">Sem dados</div>'; });
+    }
   }
 
   async function saveConvMeta() {
@@ -731,19 +816,32 @@
 
   // General Dashboard
   async function loadGeneralDashboard(period) {
-    const [dashRes, crmRes, sentRes] = await Promise.all([
+    const [dashRes, crmRes, sentRes, npsRes] = await Promise.all([
       fetch(`/api/dashboard/general?period=${period}`),
       fetch('/api/crm/summary'),
-      fetch('/api/sentiment/real').catch(() => null)
+      fetch('/api/sentiment/real').catch(() => null),
+      fetch('/api/nps/summary').catch(() => null)
     ]);
     const d = await dashRes.json();
     const crm = await crmRes.json();
     const sentReal = sentRes && sentRes.ok ? await sentRes.json() : null;
+    const nps = npsRes && npsRes.ok ? await npsRes.json() : null;
 
     document.getElementById('kpi-total').textContent = d.summary.total_tickets;
     document.getElementById('kpi-resolved').textContent = d.summary.resolved_autonomously;
     document.getElementById('kpi-escalated').textContent = d.summary.escalated_to_human;
     document.getElementById('kpi-rate').textContent = d.summary.resolution_rate + '%';
+
+    // NPS card
+    if (nps && nps.total > 0) {
+      const npsEl = document.getElementById('kpi-nps');
+      const npsCard = document.getElementById('nps-kpi-card');
+      const satisfiedPct = Math.round((nps.promoters / nps.total) * 100);
+      npsEl.textContent = satisfiedPct + '%';
+      npsEl.style.color = satisfiedPct >= 70 ? '#16a34a' : satisfiedPct >= 50 ? '#ca8a04' : '#dc2626';
+      document.getElementById('kpi-nps-sub').textContent = `${nps.total} avaliação${nps.total > 1 ? 'ões' : ''} · ${nps.promoters} satisfeito${nps.promoters !== 1 ? 's' : ''}`;
+      npsCard.className = satisfiedPct >= 70 ? 'kpi-card good' : satisfiedPct >= 50 ? 'kpi-card warn' : 'kpi-card bad';
+    }
     document.getElementById('kpi-time').textContent = d.summary.avg_resolution_time_min + ' min';
 
     if (problemsChart) problemsChart.destroy();
@@ -759,7 +857,7 @@
     if (useReal) realSentimentDetails = sentReal.details;
 
     const sourceLabel = useReal
-      ? `<span style="font-size:11px;color:#16a34a;font-weight:600">● dados reais · Slack #feedbacks · Google NLP (${sentReal.total_messages} msgs)</span>`
+      ? `<span style="font-size:11px;color:#16a34a;font-weight:600">● dados reais · WhatsApp + Slack · Google NLP (${sentReal.total_messages} msgs)</span>`
       : `<span style="font-size:11px;color:#888">dados simulados</span>`;
 
     document.getElementById('sentiment-section').innerHTML = `
@@ -771,15 +869,15 @@
         <div class="s-neg" style="width:${s.negative}%" onclick="openSentimentModal('negative')" title="Ver mensagens negativas"></div>
       </div>
       <div class="sentiment-legend">
-        <div class="s-item" onclick="openSentimentModal('positive')"><div class="s-dot" style="background:#16a34a"></div>Positivo ${s.positive}%</div>
+        <div class="s-item" onclick="openSentimentModal('positive')"><div class="s-dot" style="background:#16a34a"></div>Satisfeito ${s.positive}%</div>
         <div class="s-item" onclick="openSentimentModal('neutral')"><div class="s-dot" style="background:#d97706"></div>Neutro ${s.neutral}%</div>
-        <div class="s-item" onclick="openSentimentModal('negative')"><div class="s-dot" style="background:#dc2626"></div>Negativo ${s.negative}%</div>
+        <div class="s-item" onclick="openSentimentModal('negative')"><div class="s-dot" style="background:#dc2626"></div>Insatisfeito ${s.negative}%</div>
       </div>
       <div style="margin-top:20px"><canvas id="chart-sentiment" height="160"></canvas></div>`;
 
     new Chart(document.getElementById('chart-sentiment').getContext('2d'), {
       type: 'doughnut',
-      data: { labels: ['Positivo','Neutro','Negativo'], datasets: [{ data: [s.positive,s.neutral,s.negative], backgroundColor: ['#16a34a','#d97706','#dc2626'], borderWidth: 0 }] },
+      data: { labels: ['Satisfeito','Neutro','Insatisfeito'], datasets: [{ data: [s.positive,s.neutral,s.negative], backgroundColor: ['#16a34a','#d97706','#dc2626'], borderWidth: 0 }] },
       options: { plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: (c) => ` ${c.label}: ${c.raw}%` } } }, cutout: '65%', onClick: (e,el) => { if(el[0]) { const types=['positive','neutral','negative']; openSentimentModal(types[el[0].index]); } } }
     });
 
@@ -808,7 +906,7 @@
   }
 
   async function openSentimentModal(type) {
-    const labels = { positive: '😊 Mensagens Positivas', neutral: '😐 Mensagens Neutras', negative: '😠 Mensagens Negativas' };
+    const labels = { positive: '😊 Clientes Satisfeitos', neutral: '😐 Mensagens Neutras', negative: '😞 Clientes Insatisfeitos' };
     document.getElementById('modal-title').textContent = labels[type];
 
     if (realSentimentDetails && realSentimentDetails[type]) {

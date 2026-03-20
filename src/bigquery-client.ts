@@ -54,6 +54,51 @@ export async function getProblematicOrders(cnpj: string, limit = 5): Promise<Pro
   }
 }
 
+export interface DistributorInfo {
+  name: string;
+  total_orders: number;
+  problematic_orders: number;
+  last_order_at: string;
+  health: 'ok' | 'warning' | 'critical';
+}
+
+export async function getDistributorInfo(cnpj: string): Promise<DistributorInfo[]> {
+  try {
+    const [rows] = await bq.query({
+      query: `
+        SELECT
+          d.distributor AS name,
+          COUNT(d.order_id) AS total_orders,
+          COUNTIF(o.status IN ('Cancelled','NotInvoiced','WaitingInvoice','Sending')) AS problematic_orders,
+          FORMAT_TIMESTAMP('%d/%m/%Y %H:%M', MAX(o.updated_at), 'America/Sao_Paulo') AS last_order_at
+        FROM \`covalenty-prod.app_database_br.distributor_order\` d
+        JOIN \`covalenty-prod.app_database_br.order\` o ON o.id = d.order_id
+        JOIN \`covalenty-prod.app_database_br.client\` c ON c.client_id = o.client_id
+        WHERE c.cnpj = @cnpj
+        GROUP BY d.distributor
+        ORDER BY total_orders DESC
+        LIMIT 10
+      `,
+      params: { cnpj },
+    });
+    return rows.map((r: any) => {
+      const total = Number(r.total_orders);
+      const prob = Number(r.problematic_orders);
+      const ratio = total > 0 ? prob / total : 0;
+      return {
+        name: r.name,
+        total_orders: total,
+        problematic_orders: prob,
+        last_order_at: r.last_order_at,
+        health: ratio > 0.5 ? 'critical' : ratio > 0.2 ? 'warning' : 'ok',
+      };
+    });
+  } catch (err) {
+    console.error('[BigQuery] getDistributorInfo erro:', err);
+    return [];
+  }
+}
+
 export async function getCRMSummary() {
   try {
     const [rows] = await bq.query(`

@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { WebClient } from '@slack/web-api';
-import { getProblematicOrders } from './bigquery-client';
+import { getProblematicOrders, getDistributorInfo } from './bigquery-client';
 
 export const TOOLS: Anthropic.Tool[] = [
   {
@@ -50,6 +50,20 @@ export const TOOLS: Anthropic.Tool[] = [
         limit: {
           type: 'number',
           description: 'Número máximo de pedidos a retornar (padrão 5)',
+        },
+      },
+      required: ['cnpj'],
+    },
+  },
+  {
+    name: 'get_distributor_info',
+    description: 'Busca informações reais das distribuidoras conectadas a um cliente pelo CNPJ. Use quando o cliente perguntar quais distribuidoras tem cadastradas, qual está com problema, quantos pedidos fez por distribuidora, ou pedir uma visão geral das suas distribuidoras.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        cnpj: {
+          type: 'string',
+          description: 'CNPJ do cliente. Pergunte ao cliente se não souber.',
         },
       },
       required: ['cnpj'],
@@ -132,6 +146,34 @@ export async function executeTool(name: string, input: Record<string, string>): 
         atualizado: o.updated_at,
       })),
       instrucao: 'Apresente a lista numerada ao cliente e peça para ele escolher qual pedido quer analisar. Após a escolha, use check_order_status com o order_id escolhido ou escale para o time humano se necessário.',
+    });
+  }
+
+  if (name === 'get_distributor_info') {
+    const cnpj = input.cnpj?.replace(/\D/g, '');
+    const cnpjFormatted = cnpj?.length === 14
+      ? `${cnpj.slice(0,2)}.${cnpj.slice(2,5)}.${cnpj.slice(5,8)}/${cnpj.slice(8,12)}-${cnpj.slice(12)}`
+      : input.cnpj;
+    const dists = await getDistributorInfo(cnpjFormatted);
+    if (!dists.length) {
+      return JSON.stringify({
+        found: false,
+        message: `Nenhuma distribuidora encontrada para o CNPJ ${cnpjFormatted}. Verifique se o CNPJ está correto.`,
+      });
+    }
+    const healthLabel: Record<string, string> = { ok: '✅ Saudável', warning: '⚠️ Atenção', critical: '🔴 Crítico' };
+    return JSON.stringify({
+      found: true,
+      cnpj: cnpjFormatted,
+      total_distributors: dists.length,
+      distributors: dists.map(d => ({
+        nome: d.name,
+        status: healthLabel[d.health],
+        total_pedidos: d.total_orders,
+        pedidos_com_problema: d.problematic_orders,
+        ultimo_pedido: d.last_order_at,
+      })),
+      instrucao: 'Apresente um resumo amigável das distribuidoras. Destaque as que estão com status Crítico ou Atenção e ofereça ajuda para resolver.',
     });
   }
 

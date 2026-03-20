@@ -294,7 +294,7 @@
           <p id="chat-subtitle">Selecione uma conversa ou inicie um novo atendimento</p>
         </div>
         <button id="chat-slack-btn" onclick="escalateToSlack()" title="Escalar para Slack" style="display:none;margin-left:auto;padding:6px 14px;background:white;color:#dc2626;border:1.5px solid #dc2626;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;gap:5px;white-space:nowrap">
-          📤 Escalar N3
+          📤 Enviar p/ suporte
         </button>
       </div>
 
@@ -742,7 +742,7 @@
         if (status) { status.style.display = 'block'; status.style.color = '#16a34a'; status.textContent = data.summary; }
         setTimeout(() => {
           if (sideBtn) { sideBtn.textContent = '📤 Enviar para Slack'; sideBtn.disabled = false; }
-          if (headerBtn) { headerBtn.textContent = '📤 Escalar N3'; headerBtn.disabled = false; }
+          if (headerBtn) { headerBtn.textContent = '📤 Enviar p/ suporte'; headerBtn.disabled = false; }
         }, 4000);
       } else {
         throw new Error(data.error || 'Erro');

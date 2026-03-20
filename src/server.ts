@@ -4,6 +4,7 @@ import path from 'path';
 import { chat } from './agent';
 import { fetchFeedbacksFromSlack } from './slack-client';
 import { setSlackKnowledge } from './agent';
+import { buildWhatsAppKnowledge } from './knowledge-builder';
 import { getGeneralDashboard, getClientDashboard } from './analytics';
 import { getCRMSummary, getStagesFunnel } from './bigquery-client';
 import { getConversations } from './clint-data';
@@ -43,14 +44,23 @@ async function fetchWhatsAppMessages(limit = 20): Promise<string> {
 }
 
 async function init() {
-  console.log('[Init] Carregando base de conhecimento do Slack...');
-  const [slackData, waData] = await Promise.all([
-    fetchFeedbacksFromSlack(30),
-    fetchWhatsAppMessages(10),
-  ]);
-  const combined = [slackData, waData].filter(Boolean).join('\n');
-  setSlackKnowledge(combined);
-  console.log('[Init] Pronto! Slack + WhatsApp carregados.');
+  console.log('[Init] Carregando base de conhecimento...');
+  // Slack rápido para ter algo imediato
+  const slackData = await fetchFeedbacksFromSlack(30);
+  if (slackData) {
+    setSlackKnowledge(slackData);
+    console.log('[Init] Slack carregado. Servidor pronto para atender.');
+  }
+  // WhatsApp: processa 1000 mensagens em background com sumarização via Claude
+  buildWhatsAppKnowledge()
+    .then(waKnowledge => {
+      if (waKnowledge) {
+        const combined = [waKnowledge, slackData].filter(Boolean).join('\n\n---\n\n');
+        setSlackKnowledge(combined);
+        console.log('[Init] Base de conhecimento do WhatsApp integrada com sucesso.');
+      }
+    })
+    .catch(err => console.error('[Init] Erro ao construir base WhatsApp:', err));
 }
 
 app.post('/chat', async (req, res) => {

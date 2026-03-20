@@ -47,7 +47,7 @@ Você tem acesso a ferramentas para:
 ## Base de conhecimento — Manual SOS:
 ${MANUAL_SOS}
 
-${slackKnowledge ? `## Feedbacks reais dos clientes (Slack + WhatsApp):\n${slackKnowledge}` : ''}
+${slackKnowledge ? `## Base de conhecimento — Padrões reais dos clientes (WhatsApp + Slack):\n${slackKnowledge}` : ''}
 
 ## Regras de escalação (nível 2):
 - Se após tentar resolver o problema ele persistir, use a tool escalate_to_human

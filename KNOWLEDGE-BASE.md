@@ -1,12 +1,13 @@
-# Base de Conhecimento — Suporte Cienty
+# Base de Conhecimento — Suporte Cienty (CarlinhIA)
 
 > Extraído de: Manual SOS interno + 29.083 conversas WhatsApp + BigQuery produção · Março 2026
+> Atualizado automaticamente pelo knowledge-builder ao iniciar o servidor
 
 ---
 
 ## 1. Distribuidora com "Erro ao Conectar"
 
-**Volume:** Alto · aparece nas distribuidoras com login via portal eletrônico
+**Volume:** Alto
 **Distribuidoras afetadas:** Panpharma, Santa Cruz, Servimed, Drogacenter, Medicamental, Navarro, Solfarma
 
 **Causas comuns:**
@@ -20,14 +21,14 @@
 **Resolução:**
 1. Rodar sync na distribuidora
 2. Se não resolver → verificar senha do portal eletrônico
-3. Orientar cliente a atualizar a senha na plataforma (ou acessar via Anydesk)
+3. Orientar o cliente a atualizar a senha na plataforma (ou acessar via Anydesk)
 4. Se persistir → escalar para time de produto
 
 ---
 
 ## 2. Distribuidora "sumiu" da cotação
 
-**Volume:** Frequente · especialmente após limpeza de filtros pelo cliente
+**Volume:** Frequente
 
 **Causas comuns:**
 - Cliente desativou a distribuidora por engano
@@ -46,17 +47,26 @@
 
 ## 3. Pedido travado em "Aguardando" ou "Sending"
 
-**Volume:** Critico — 52.000+ casos no BigQuery (WaitingInvoice + Sending)
-**Top distribuidoras:** PanPharma (8.766), Santa Cruz (7.858), ProFarma (7.055), Solfarma (6.961), Drogacenter (6.669)
+**Volume:** Critico — 52.000+ casos no BigQuery
+
+| Distribuidora | WaitingInvoice | Sending |
+|---|---|---|
+| PanPharma | 8.766 | 4.217 |
+| Santa Cruz | 7.858 | 4.018 |
+| ProFarma | 7.055 | 5.322 |
+| Solfarma | 6.961 | 3.457 |
+| Drogacenter | 6.669 | 3.369 |
+| Milfarma | 5.651 | 2.191 |
+| Servimed | 3.951 | — |
 
 **Resposta padrão:**
 > "Vi aqui que seu pedido está travado na [distribuidora]. Isso acontece quando a distribuidora tem delay no faturamento. Vou disparar uma sincronização agora — espera uns 10 minutinhos que dá certo."
 
 **Resolução:**
 1. Confirmar CNPJ do cliente
-2. Buscar pedidos problemáticos no BigQuery
-3. Rodar sync na distribuidora
-4. Se não resolver em 10 min → escalar informando: número do pedido + distribuidora + status
+2. Buscar pedidos problemáticos no BigQuery (ferramenta `get_problematic_orders`)
+3. Rodar sync na distribuidora (`trigger_sync`)
+4. Se não resolver em 10 min → escalar com: número do pedido + distribuidora + status
 
 ---
 
@@ -69,7 +79,7 @@
 **Resposta padrão:**
 > "Já entrei em contato com a [distribuidora] sobre o seu pedido. Estão verificando o que aconteceu na esteira de faturamento. Assim que tiver retorno te aviso."
 
-**Resolução:** Escalar para time humano com contexto completo. Time contata a distribuidora diretamente.
+**Resolução:** Escalar para time humano. Time contata a distribuidora diretamente.
 
 ---
 
@@ -82,7 +92,7 @@
 
 **Resolução:**
 1. Rodar sync na distribuidora
-2. Aguardar sincronização (~5 min)
+2. Aguardar (~5 min)
 3. Se persistir → abrir chamado com número do produto e distribuidora
 
 ---
@@ -110,9 +120,9 @@
 
 ---
 
-## Distribuidoras que precisam de login manual (senha do portal)
+## Distribuidoras que precisam de senha do portal eletrônico
 
-| Distribuidora | Precisa de senha do portal eletrônico |
+| Distribuidora | Precisa de senha manual |
 |---|---|
 | Panpharma | Sim |
 | Santa Cruz | Sim |
@@ -126,31 +136,64 @@
 
 ## Quando escalar para humano (N2/N3)
 
-- Pedido travado ha mais de 24h apos sync
-- Distribuidora com erro persistente mesmo apos atualização de senha
-- Cliente mencionar perda financeira ou urgencia critica
-- Problema afeta multiplos pedidos do mesmo cliente
-- Andorinha ou Maxifarma com pedidos travados (precisam de contato direto com a distribuidora)
+- Pedido travado há mais de 24h após sync
+- Distribuidora com erro persistente mesmo após atualização de senha
+- Cliente mencionar perda financeira ou urgência crítica
+- Problema afeta múltiplos pedidos do mesmo cliente
+- Andorinha ou Maxifarma com pedidos travados (precisam de contato direto)
 
 ---
 
-## Padroes de linguagem dos clientes (WhatsApp)
+## Padrões de linguagem dos clientes (WhatsApp real)
 
-Os farmaceuticos costumam ser diretos e informais:
+Os farmacêuticos são diretos e informais:
 - "Problema na servimed"
 - "voce consegue ver pra mim oq houve aqui?"
 - "eles sao pessimo" (sobre distribuidoras)
-- Mandam CNPJ ou email diretamente sem contexto
-- Muito gratos quando resolvido rapido ("obrigadoooooo", "muito obrigadaa")
+- Mandam CNPJ ou email diretamente sem contexto adicional
+- Muito gratos quando resolvido rápido ("obrigadoooooo", "muito obrigadaa")
 
-Isso indica que respostas devem ser curtas, diretas e com acao imediata — sem rodeios.
+**Conclusão:** Respostas devem ser curtas, com ação imediata, sem rodeios.
 
 ---
 
-## CNPJs de teste (reais, com pedidos problematicos no BigQuery)
+## Fluxo de atendimento CarlinhIA (N1 → N2 → N3)
 
-| CNPJ | Pedidos problematicos |
+```
+Cliente contacta via Widget ou WhatsApp
+        ↓
+[N1] CarlinhIA (IA) resolve automaticamente
+   - Consulta BigQuery (pedidos, distribuidoras)
+   - Roda sync
+   - Responde dúvidas da base de conhecimento
+        ↓ (se não resolver)
+[N2] Carla Feitosa assume pelo painel admin
+   - Vê histórico completo
+   - Responde em modo humano (aparece no widget em tempo real)
+        ↓ (se precisar de tech)
+[N3] Escalação automática via Slack #feedbacks
+   - CarlinhIA posta resumo completo: CNPJ + problema + o que foi tentado
+   - Time técnico assume
+```
+
+---
+
+## CNPJs de teste com pedidos problemáticos reais (BigQuery)
+
+| CNPJ | Pedidos problemáticos |
 |---|---|
-| `47.350.042/0001-16` | 528 |
-| `18.454.563/0001-15` | 426 |
-| `44.623.074/0001-50` | 145 |
+| `47.350.042/0001-16` | 528 — **usar na demo** |
+| `18.454.563/0001-15` | 426 — backup |
+| `44.623.074/0001-50` | 145 — teste rápido |
+
+---
+
+## Links do sistema
+
+| | URL |
+|---|---|
+| Demo com widget | `https://cienty-agent-r5jlw7wilq-rj.a.run.app/widget-demo.html` |
+| Painel admin | `https://cienty-agent-r5jlw7wilq-rj.a.run.app` |
+| Widget standalone | `https://cienty-agent-r5jlw7wilq-rj.a.run.app/cliente.html` |
+| Pitch | `https://cienty-agent-r5jlw7wilq-rj.a.run.app/pitch.html` |
+| GitHub | `https://github.com/covalenty/hackaton-grupo-5` |

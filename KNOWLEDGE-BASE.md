@@ -1,199 +1,247 @@
 # Base de Conhecimento — Suporte Cienty (CarlinhIA)
 
-> Extraído de: Manual SOS interno + 29.083 conversas WhatsApp + BigQuery produção · Março 2026
-> Atualizado automaticamente pelo knowledge-builder ao iniciar o servidor
+> Gerado automaticamente a partir de 1000 conversas reais do WhatsApp
+> Processado por Claude · 20 de março de 2026
+> **Uso interno — time de CS Cienty**
 
 ---
 
-## 1. Distribuidora com "Erro ao Conectar"
-
-**Volume:** Alto
-**Distribuidoras afetadas:** Panpharma, Santa Cruz, Servimed, Drogacenter, Medicamental, Navarro, Solfarma
-
-**Causas comuns:**
-- Senha do portal eletrônico foi alterada pelo cliente ou representante
-- Distribuidora desatualizada (precisa de sync)
-- Intermitência de conexão temporária
-
-**Resposta padrão:**
-> "Vou verificar o que está acontecendo com a [distribuidora], só um momento... Parece que a senha do portal pode ter sido alterada. Você tem a senha atual do portal da [distribuidora]? Se não tiver, posso te orientar a redefinir."
-
-**Resolução:**
-1. Rodar sync na distribuidora
-2. Se não resolver → verificar senha do portal eletrônico
-3. Orientar o cliente a atualizar a senha na plataforma (ou acessar via Anydesk)
-4. Se persistir → escalar para time de produto
+# Documento de Inteligência de Suporte — Cienty
+**Versão:** 1.0 | **Base:** Análise de 10 lotes de conversas de suporte | **Uso:** Interno — Time de Customer Success
 
 ---
 
-## 2. Distribuidora "sumiu" da cotação
+## Resumo Executivo
 
-**Volume:** Frequente
-
-**Causas comuns:**
-- Cliente desativou a distribuidora por engano
-- Filtro de distribuidoras foi alterado na aba de busca
-
-**Resposta padrão:**
-> "Deixa eu checar se as distribuidoras estão ativadas no seu acesso... Às vezes elas ficam escondidas por um filtro. Clica na cotação e veja se tem um filtro de distribuidoras ativado."
-
-**Resolução:**
-1. Verificar se distribuidoras estão ativadas (acessar pela conta do cliente)
-2. Checar filtro de distribuidoras na aba de busca
-3. Reativar na aba de cotação se estiver desativada
-4. Se não resolver → abrir chamado no time
+A Cienty opera como intermediária crítica entre farmácias e distribuidoras, e a grande maioria dos problemas reportados está concentrada em **falhas de integração com distribuidoras** (especialmente Solfarma e Servimed), **pedidos travados em transição de status** e **bloqueios cadastrais por documentação incompleta ou vencida**. O time de suporte demonstra boa capacidade de triagem e comunicação empática, mas opera de forma predominantemente reativa — resolvendo sintomas (ex.: reenvio manual de pedidos) sem investigar ou endereçar causas raiz sistematicamente. A experiência de UX da plataforma é um ponto de atrito emergente, especialmente em relação à performance, atualização de página e importação de planilhas. Há uma oportunidade clara de reduzir volume de tickets criando playbooks documentados para os problemas recorrentes, em especial os que envolvem Solfarma, Servimed e bloqueios de cadastro.
 
 ---
 
-## 3. Pedido travado em "Aguardando" ou "Sending"
+## Problemas Mais Frequentes (ranqueados por volume)
 
-**Volume:** Critico — 52.000+ casos no BigQuery
+### 1. Falhas de integração / conectividade com distribuidoras
 
-| Distribuidora | WaitingInvoice | Sending |
-|---|---|---|
-| PanPharma | 8.766 | 4.217 |
-| Santa Cruz | 7.858 | 4.018 |
-| ProFarma | 7.055 | 5.322 |
-| Solfarma | 6.961 | 3.457 |
-| Drogacenter | 6.669 | 3.369 |
-| Milfarma | 5.651 | 2.191 |
-| Servimed | 3.951 | — |
+**Descrição:** A distribuidora aparece como desconectada, o pedido não é transmitido ou fica travado, ou há erros no retorno da integração. Afeta múltiplos CNPJs ao mesmo tempo em alguns casos.
 
-**Resposta padrão:**
-> "Vi aqui que seu pedido está travado na [distribuidora]. Isso acontece quando a distribuidora tem delay no faturamento. Vou disparar uma sincronização agora — espera uns 10 minutinhos que dá certo."
+**Como o cliente relata:**
+> *"a servimed não ta conectando"*
+> *"não consigo transmitir pedido pela solfarma"*
+> *"Distribuidora Solfarma a 3 dias não está sendo enviado. Tem algum motivo?"*
+> *"desconectou e não consigo mais conectar"*
 
-**Resolução:**
-1. Confirmar CNPJ do cliente
-2. Buscar pedidos problemáticos no BigQuery (ferramenta `get_problematic_orders`)
-3. Rodar sync na distribuidora (`trigger_sync`)
-4. Se não resolver em 10 min → escalar com: número do pedido + distribuidora + status
+**Solução padrão do time:**
+1. Verificar status da conta/CNPJ do cliente na plataforma
+2. Tentar atualização via botão "casinha" / refresh da distribuidora
+3. Contatar distribuidora diretamente para verificar status
+4. Se instabilidade confirmada: comunicar ao cliente com prazo estimado de normalização
+5. Reenvio manual do pedido quando aplicável
+
+**Lacuna atual:** Não há script padronizado. Cada atendente resolve de forma diferente, o que gera inconsistência no tempo de resolução.
 
 ---
 
-## 4. Pedido em "Aguardando Faturamento" — Andorinha e Maxifarma
+### 2. Pedidos travados em status (enviando / aguardando / cancelado)
 
-**Observação real das conversas WhatsApp:**
-- "a Andorinha ainda não conseguiu identificar o que está travando os pedidos no seu acesso do lado deles"
-- "a Maxifarma ontem teve um problema na esteira de faturamento"
+**Descrição:** Pedidos ficam presos em fases de transição sem progressão automática. Causas incluem instabilidades técnicas, processamento manual pela distribuidora ou falha no roteamento.
 
-**Resposta padrão:**
-> "Já entrei em contato com a [distribuidora] sobre o seu pedido. Estão verificando o que aconteceu na esteira de faturamento. Assim que tiver retorno te aviso."
+**Como o cliente relata:**
+> *"o do CNPJ 60.497.849/0001-44 está com status de enviando"*
+> *"Esse pedido ficou enviando desde ontem e não recebi"*
+> *"tem um pedido de ontem com status de 'enviando', será que este pedido virá?"*
+> *"fiz um pedido pela plataforma, consta como faturado mas ainda não chegou"*
 
-**Resolução:** Escalar para time humano. Time contata a distribuidora diretamente.
+**Solução padrão do time:**
+1. Verificar status do pedido no backend
+2. Oferecer reenvio manual: *"posso reenviar por aqui?"*
+3. Informar ao cliente sobre expectativa de retorno: *"já deve retornar o status em breve"*
+4. Nos casos de CD com processamento manual (ex.: Ultrafarma): esclarecer que o status não será atualizado automaticamente
 
----
-
-## 5. Preço diferente do Portal Eletrônico (PE)
-
-**Causa:** Distribuidora desatualizada na plataforma
-
-**Resposta padrão:**
-> "O preço diferente acontece quando a distribuidora está com a tabela desatualizada. Vou rodar uma sincronização para atualizar os preços — deve normalizar em alguns minutos."
-
-**Resolução:**
-1. Rodar sync na distribuidora
-2. Aguardar (~5 min)
-3. Se persistir → abrir chamado com número do produto e distribuidora
+**Lacuna atual:** O reenvio manual é a solução padrão, mas não há diagnóstico sistemático da causa. Pedidos cancelados sem justificativa não são investigados.
 
 ---
 
-## 6. Erro de rede / Network Error
+### 3. Bloqueios de cadastro por documentação (CRF, SIVISA, Alvará)
 
-**Causa:** VPN ativa na máquina do cliente ou instabilidade de infraestrutura
+**Descrição:** Farmácias ficam impossibilitadas de operar com uma ou mais distribuidoras por documentação vencida, incorreta ou não enviada. O bloqueio pode afetar múltiplas distribuidoras simultaneamente.
 
-**Resposta padrão:**
-> "Você está usando VPN no seu computador agora? Esse erro acontece quando tem VPN ativa. Se tiver, desativa e tenta de novo."
+**Como o cliente relata:**
+> *"no Cienty está avisando que estamos bloqueados na JMF por conta de validade da licença regional"*
+> *"Distribuidora Solfarma está me barrando por motivo de Alvará vencido, mas não está"*
+> *"Só nesse CNPJ constam 05 distribuidoras bloqueadas no total: JMF / Morauky / Nova SD / Qualymed / Rio Pharma"*
+> *"O problema é que meu pai tinha mandado o SIVISA errado"*
 
-**Resolução:**
-1. Orientar a desativar VPN
-2. Se não resolver → DevTools > Console > verificar requisição com status "failed"
-3. Abrir chamado com print do erro
+**Solução padrão do time:**
+1. Confirmar com a distribuidora qual o motivo exato do bloqueio
+2. Solicitar documentação atualizada ao cliente: *"pode me enviar o SIVISA e CRF?"*
+3. Encaminhar documentação para a distribuidora
+4. Informar prazo estimado: *"devem liberar em até 72 horas"*
 
----
-
-## 7. Erro "Carrinho não encontrado"
-
-**Causa:** Cliente usou a plataforma em browsers ou abas diferentes simultaneamente
-
-**Resposta padrão:**
-> "Esse erro acontece quando você usou o site em mais de uma aba ou navegador ao mesmo tempo. Pode fechar todas as abas e abrir em uma só?"
+**Lacuna atual:** Quando o cliente alega que o documento não está vencido (ex.: caso do Alvará), não há processo de contestação formal junto à distribuidora.
 
 ---
 
-## Distribuidoras que precisam de senha do portal eletrônico
+### 4. Problemas de performance e UX da plataforma
 
-| Distribuidora | Precisa de senha manual |
+**Descrição:** Lentidão no carregamento, necessidade de dar refresh constante, falhas na atualização de itens no carrinho, erros em importação de planilhas.
+
+**Como o cliente relata:**
+> *"a experiência de UI/UX está horrível"*
+> *"tem hora que buga, tem que ficar dando refresh toda hora, não tem fluidez"*
+> *"O sistema está muito ruim pra ajustar as quantidades no carrinho"*
+> *"Desde segunda-feira o meu está lento"*
+> *"Tentei importar a planilha e não carregou"*
+
+**Solução padrão do time:**
+1. Sugerir abrir em outro navegador
+2. Indicar botão de refresh/atualização na interface
+3. Para planilhas: enviar modelo correto (apenas coluna EAN + coluna quantidade, sem formatação)
+4. Escalar feedback para o time de produto
+
+**Lacuna atual:** Sem SLA de resposta documentado para bugs de UX. Feedbacks são encaminhados ao produto sem follow-up estruturado ao cliente.
+
+---
+
+### 5. Cadastro de novas farmácias / novos CNPJs em distribuidoras
+
+**Descrição:** Clientes precisam ser cadastrados em distribuidoras com as quais ainda não operam. O processo é manual, depende de documentação e de aprovação da distribuidora, e pode levar dias.
+
+**Como o cliente relata:**
+> *"tem empresa que não temos o contato"*
+> *"Me tira uma dúvida, pra vcs incluírem um Novo CNPJ na Plataforma, o que precisa?"*
+> *"enviou o cadastro pela plataforma no dia 21 de janeiro, porém ainda não foram concluídos"*
+> *"SP Med já liberou meu cadastro"* (indicando aguardar outras)
+
+**Solução padrão do time:**
+1. Coletar documentação: CNPJ, nome fantasia, endereço com CEP, e-mail, CRF, SIVISA, telefone do comprador
+2. Encaminhar para distribuidoras
+3. Informar prazo: *"devem liberar em até 72 horas, aí vai conectar automaticamente na plataforma"*
+4. Enviar link de ativação quando disponível (ex.: Medicamental)
+
+**Lacuna atual:** Cadastros com mais de 30 dias sem conclusão não têm processo de cobrança proativa. O cliente do Lote 8 aguardava conclusão há mais de 1 mês.
+
+---
+
+### 6. Variação de preços / condições de pagamento inesperadas
+
+**Descrição:** Clientes identificam preços diferentes dos esperados ou condições de pagamento incorretas (ex.: "a vista mínimo R$ 0,00").
+
+**Como o cliente relata:**
+> *"Atorvastatina Legrand 20mg: R$6,25 → R$7,49"*
+> *"Só tinha a opção a vista mínimo 0.00"*
+> *"está sem prazo definido a Solfarma"*
+
+**Solução padrão do time:**
+1. Confirmar variação com a distribuidora
+2. Atualizar prazo de pagamento nas configurações
+3. Comunicar ao cliente após ajuste
+
+---
+
+## Distribuidoras com Mais Problemas
+
+### 🔴 Solfarma — Maior volume de incidentes
+
+| Tipo de Problema | Frequência Observada |
 |---|---|
-| Panpharma | Sim |
-| Santa Cruz | Sim |
-| Servimed | Sim |
-| Drogacenter | Sim |
-| Medicamental | Sim |
-| Navarro | Sim |
-| Solfarma | Sim |
+| Falha de integração / pedido não transmitido | Alta |
+| Pedidos não faturados por instabilidade técnica | Alta |
+| Demora no retorno do pedido | Alta |
+| Itens sem estoque | Média |
+| Campo de pagamento incorreto | Baixa |
+
+**Contexto:** A Solfarma foi citada em pelo menos 7 dos 10 lotes analisados. Houve uma intermitência documentada nos dias 16-18/03 que causou não faturamento de múltiplos pedidos. Clientes descrevem como *"sempre dá problema na Solfarma"*, indicando percepção de recorrência. Parte dos problemas é de responsabilidade da distribuidora (envio manual, demora no faturamento), mas a Cienty é quem recebe o impacto.
 
 ---
 
-## Quando escalar para humano (N2/N3)
+### 🔴 Servimed — Problemas recorrentes de conectividade
 
-- Pedido travado há mais de 24h após sync
-- Distribuidora com erro persistente mesmo após atualização de senha
-- Cliente mencionar perda financeira ou urgência crítica
-- Problema afeta múltiplos pedidos do mesmo cliente
-- Andorinha ou Maxifarma com pedidos travados (precisam de contato direto)
-
----
-
-## Padrões de linguagem dos clientes (WhatsApp real)
-
-Os farmacêuticos são diretos e informais:
-- "Problema na servimed"
-- "voce consegue ver pra mim oq houve aqui?"
-- "eles sao pessimo" (sobre distribuidoras)
-- Mandam CNPJ ou email diretamente sem contexto adicional
-- Muito gratos quando resolvido rápido ("obrigadoooooo", "muito obrigadaa")
-
-**Conclusão:** Respostas devem ser curtas, com ação imediata, sem rodeios.
-
----
-
-## Fluxo de atendimento CarlinhIA (N1 → N2 → N3)
-
-```
-Cliente contacta via Widget ou WhatsApp
-        ↓
-[N1] CarlinhIA (IA) resolve automaticamente
-   - Consulta BigQuery (pedidos, distribuidoras)
-   - Roda sync
-   - Responde dúvidas da base de conhecimento
-        ↓ (se não resolver)
-[N2] Carla Feitosa assume pelo painel admin
-   - Vê histórico completo
-   - Responde em modo humano (aparece no widget em tempo real)
-        ↓ (se precisar de tech)
-[N3] Escalação automática via Slack #feedbacks
-   - CarlinhIA posta resumo completo: CNPJ + problema + o que foi tentado
-   - Time técnico assume
-```
-
----
-
-## CNPJs de teste com pedidos problemáticos reais (BigQuery)
-
-| CNPJ | Pedidos problemáticos |
+| Tipo de Problema | Frequência Observada |
 |---|---|
-| `47.350.042/0001-16` | 528 — **usar na demo** |
-| `18.454.563/0001-15` | 426 — backup |
-| `44.623.074/0001-50` | 145 — teste rápido |
+| Erro ao conectar / integração offline | Alta |
+| Recuperação de senha/acesso | Média |
+
+**Contexto:** Citada em múltiplos lotes com o mesmo padrão: cliente não consegue conectar, suporte orienta a clicar na "casinha" e aguardar 10 minutos. A solução paliativa funciona pontualmente, mas não há resolução definitiva documentada. Possível problema de integração estrutural não investigado.
 
 ---
 
-## Links do sistema
+### 🟡 JMF — Bloqueios cadastrais
 
-| | URL |
+| Tipo de Problema | Frequência Observada |
 |---|---|
-| Demo com widget | `https://cienty-agent-r5jlw7wilq-rj.a.run.app/widget-demo.html` |
-| Painel admin | `https://cienty-agent-r5jlw7wilq-rj.a.run.app` |
-| Widget standalone | `https://cienty-agent-r5jlw7wilq-rj.a.run.app/cliente.html` |
-| Pitch | `https://cienty-agent-r5jlw7wilq-rj.a.run.app/pitch.html` |
-| GitHub | `https://github.com/covalenty/hackaton-grupo-5` |
+| Bloqueio por CRF vencido | Alta |
+| Títulos em aberto | Média |
+| Pendências regulatórias | Média |
+
+**Contexto:** JMF bloqueia farmácias com frequência por questões de compliance (CRF, licença regional). O suporte Cienty funciona como intermediário, mas não tem autonomia para resolver — depende do cliente atualizar os documentos e da distribuidora reativar o cadastro.
+
+---
+
+### 🟡 Divamed — Desconexão e indisponibilidade
+
+| Tipo de Problema | Frequência Observada |
+|---|---|
+| Saída não autorizada de CNPJs | Baixa |
+| Distribuidora offline/indisponível | Média |
+
+**Contexto:** Aparece em lotes 7, 8 e 9 com o mesmo problema: distribuidora desconectada da plataforma sem motivo claro. Em um caso, o suporte mencionou estar em reunião com o time de TI, sugerindo problema de nível técnico mais profundo.
+
+---
+
+### 🟡 Andorinha — Pedidos travados sem diagnóstico
+
+| Tipo de Problema | Frequência Observada |
+|---|---|
+| Pedidos travados sem motivo identificado | Média |
+| Problemas técnicos em integração | Baixa |
+
+**Contexto:** Citada especialmente no Lote 1 como distribuidora onde o suporte *"ainda não conseguiu identificar o que está travando"*. TI foi acionado, sem resolução registrada.
+
+---
+
+### 🟢 Medicamental / SPMed / Seed Farma — Atrasos em cadastro e faturamento
+
+**Contexto:** Distribuidoras mais novas na plataforma, com processos de cadastro mais lentos (dependem de aprovação manual delas) e faturamento com atrasos ocasionais. Nada sistêmico, mas gera tickets de acompanhamento.
+
+---
+
+## Como os Clientes se Comunicam
+
+### Nível de formalidade
+**Baixo a muito baixo.** O canal predominante é WhatsApp, e os clientes usam linguagem coloquial de forma consistente:
+- Abreviações: *"Td bem?", "blz", "obg", "tbm"*
+- Expressões regionais: *"ta jóia", "show de bola", "valeu gato"*
+- Emojis e risadas: *"kkk", "rs"*, 👍
+- Erros de digitação frequentes (sem impacto na compreensão)
+
+### Forma de descrever problemas
+**Vaga e direta.** Os clientes raramente fornecem contexto técnico espontaneamente:
+- Descrevem o sintoma, não a causa: *"não fatura"*, *"não vai"*, *"bugou"*
+- Usam o status do sistema como referência: *"está em enviando"*, *"aparece cancelado"*
+- Poucos detalham qual navegador, horário exato, sequência de ações
+
+**Exceção:** Clientes com perfil mais técnico (possivelmente donos ou gerentes de redes) usam linguagem mais precisa: *"tem outra URI rodando dentro de um iframe"*, *"o CNPJ 60.497.849/0001-44 está com status de enviando"*.
+
+### Nível de urgência típico
+A maioria comunica urgência de forma **implícita**, através de:
+- Repetição da mesma mensagem sem resposta
+- Referências a prazos financeiros: *"o boleto vence amanhã"*
+- Impacto no cliente final: *"o cliente já nos contatou várias vezes"*
+- Histórico de tentativas: *"tentei ontem assim e não carregou"*
+
+Urgência **explícita** aparece em casos com impacto financeiro direto ou prazos regulatórios: *"partir do dia 01/04 não consigo receber mercadoria com CNPJ antigo"*.
+
+### Vocabulário específico do segmento
+O time deve conhecer os seguintes termos que os clientes usam:
+- **Esteira de faturamento** — processo de processamento de pedidos na distribuidora
+- **Prazo** — condição de pagamento (ex.: 7 dias, 35 dias)
+- **CRF / SIVISA / Alvará** — documentos regulatórios obrigatórios
+- **CNPJ** — usado como identificador primário da loja (clientes têm múltiplos CNPJs)
+- **EAN** — código de barras do produto
+- **Cotação** — processo de busca e comparação de preços entre distribuidoras
+- **Carrinho** — seleção de itens antes do envio do pedido
+
+### Horários e padrões de contato
+Não há dado de horário suficiente para estatística robusta, mas há evidências de contatos em:
+- **Horário comercial estendido** (até ~20h, conforme menção a "instabilidade ontem próximo das 20h")
+- **Urgência pós-fechamento** implícita em algumas mensagens
+- **Segunda-feira**

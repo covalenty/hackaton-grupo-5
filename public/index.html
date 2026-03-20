@@ -566,22 +566,29 @@
     }
   }
 
-  // Auto-refresh a cada 5s para pegar novas mensagens
+  // Refresh da lista a cada 5s
   setInterval(() => {
     if (document.getElementById('page-chat').classList.contains('active')) {
       loadConversations();
-      // Refresh messages of currently selected live session
-      if (selectedConvId) {
-        const c = allConvs.find(x => x.id === selectedConvId);
-        if (c && c.isLive) {
-          fetch(`/api/sessions/${encodeURIComponent(selectedConvId)}/messages`)
-            .then(r => r.json())
-            .then(msgs => renderLiveMessages(msgs))
-            .catch(() => {});
-        }
-      }
     }
   }, 5000);
+
+  // Refresh das mensagens da sessão ativa a cada 2s (tempo real)
+  setInterval(() => {
+    if (!selectedConvId) return;
+    const c = allConvs.find(x => x.id === selectedConvId);
+    if (c && c.isLive) {
+      fetch(`/api/sessions/${encodeURIComponent(selectedConvId)}/messages`)
+        .then(r => r.json())
+        .then(msgs => {
+          // Só re-renderiza se houver mensagem nova
+          const wrap = document.getElementById('messages');
+          const current = wrap.querySelectorAll('.message').length;
+          if (msgs.length !== current) renderLiveMessages(msgs);
+        })
+        .catch(() => {});
+    }
+  }, 2000);
 
   function applyFilters() {
     const search = document.getElementById('cnpj-search-input').value.trim();

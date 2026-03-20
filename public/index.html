@@ -293,6 +293,9 @@
           <h3 id="chat-title">CarlinhIA · Suporte Cienty</h3>
           <p id="chat-subtitle">Selecione uma conversa ou inicie um novo atendimento</p>
         </div>
+        <button id="chat-slack-btn" onclick="escalateToSlack()" title="Escalar para Slack" style="display:none;margin-left:auto;padding:6px 14px;background:white;color:#dc2626;border:1.5px solid #dc2626;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;gap:5px;white-space:nowrap">
+          📤 Escalar N3
+        </button>
       </div>
 
       <div class="messages" id="messages">
@@ -668,6 +671,7 @@
         <div style="font-size:12px;padding:5px 0;color:#444">Sessão: ${id.slice(-8)}</div>`;
       document.getElementById('escalate-btn').style.display = 'flex';
       document.getElementById('escalate-status').style.display = 'none';
+      document.getElementById('chat-slack-btn').style.display = 'inline-flex';
       fetch(`/api/sessions/${encodeURIComponent(id)}/messages`)
         .then(r => r.json())
         .then(msgs => renderLiveMessages(msgs))
@@ -684,6 +688,7 @@
         <div style="font-size:12px;padding:5px 0;color:#444">Cidade: ${c.city || '—'}${c.state ? '/' + c.state : ''}</div>`;
       document.getElementById('escalate-btn').style.display = 'none';
       document.getElementById('escalate-status').style.display = 'none';
+      document.getElementById('chat-slack-btn').style.display = 'inline-flex';
       // Modo IA: restaura input normal
       document.getElementById('human-mode-bar').style.display = 'none';
       document.getElementById('input').placeholder = 'Digite sua dúvida...';
@@ -725,29 +730,30 @@
 
   async function escalateToSlack() {
     if (!selectedConvId) return;
-    const btn = document.getElementById('escalate-btn');
+    const sideBtn = document.getElementById('escalate-btn');
+    const headerBtn = document.getElementById('chat-slack-btn');
     const status = document.getElementById('escalate-status');
-    btn.disabled = true;
-    btn.textContent = '⏳ Enviando...';
+    [sideBtn, headerBtn].forEach(b => { if (b) { b.disabled = true; b.textContent = '⏳ Enviando...'; } });
     try {
       const r = await fetch(`/api/sessions/${encodeURIComponent(selectedConvId)}/escalate`, { method: 'POST' });
       const data = await r.json();
       if (data.ok) {
-        btn.textContent = '✅ Enviado!';
-        status.style.display = 'block';
-        status.style.color = '#16a34a';
-        status.textContent = data.summary;
-        setTimeout(() => { btn.textContent = '📤 Enviar para Slack'; btn.disabled = false; }, 4000);
+        [sideBtn, headerBtn].forEach(b => { if (b) b.textContent = '✅ Enviado no Slack!'; });
+        if (status) { status.style.display = 'block'; status.style.color = '#16a34a'; status.textContent = data.summary; }
+        setTimeout(() => {
+          if (sideBtn) { sideBtn.textContent = '📤 Enviar para Slack'; sideBtn.disabled = false; }
+          if (headerBtn) { headerBtn.textContent = '📤 Escalar N3'; headerBtn.disabled = false; }
+        }, 4000);
       } else {
         throw new Error(data.error || 'Erro');
       }
     } catch (e) {
-      btn.textContent = '❌ Falhou';
-      btn.disabled = false;
-      status.style.display = 'block';
-      status.style.color = '#dc2626';
-      status.textContent = 'Verifique as configurações do Slack';
-      setTimeout(() => { btn.textContent = '📤 Enviar para Slack'; status.style.display = 'none'; }, 4000);
+      [sideBtn, headerBtn].forEach(b => { if (b) { b.textContent = '❌ Falhou'; b.disabled = false; } });
+      if (status) { status.style.display = 'block'; status.style.color = '#dc2626'; status.textContent = 'Verifique as configurações do Slack'; }
+      setTimeout(() => {
+        if (sideBtn) { sideBtn.textContent = '📤 Enviar para Slack'; status.style.display = 'none'; }
+        if (headerBtn) headerBtn.textContent = '📤 Escalar N3';
+      }, 4000);
     }
   }
 

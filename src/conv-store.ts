@@ -17,7 +17,7 @@ export const AGENTS = [
   { id: 'joao',  name: 'João',          avatar: '👨‍💻' },
   { id: 'mi',    name: 'Mi',            avatar: '👩‍🔬' },
   { id: 'lu',    name: 'Lu',            avatar: '🧑‍💼' },
-  { id: 'wes',   name: 'Wesley',        avatar: '👨‍💼' },
+  { id: 'wes',   name: 'Ués',           avatar: '👨‍💼' },
 ];
 
 export const STATUS_LABELS: Record<ConvStatus, string> = {

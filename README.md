@@ -214,4 +214,4 @@ gcloud run deploy cienty-agent \
 | 👨‍💻 | João |
 | 👩‍🔬 | Mi |
 | 🧑‍💼 | Lu |
-| 👨‍💼 | Wesley |
+| 👨‍💼 | Ués |

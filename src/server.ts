@@ -162,6 +162,16 @@ app.get('/api/sessions/:id/messages', (req, res) => {
   return res.json(getMessages(id));
 });
 
+// Admin responde diretamente em uma sessão (human takeover)
+app.post('/api/sessions/:id/reply', (req, res) => {
+  const id = decodeURIComponent(req.params.id);
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: 'message obrigatório' });
+  addMessage(id, 'bot', `[Humano] ${message}`);
+  setConvMeta(id, { status: 'human_active' });
+  return res.json({ ok: true });
+});
+
 app.get('/api/conversations', (req, res) => {
   const search = req.query.search as string | undefined;
   const status = req.query.status as string | undefined;

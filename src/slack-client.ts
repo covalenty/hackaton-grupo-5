@@ -12,11 +12,31 @@ export async function fetchFeedbacksFromSlack(limit = 100): Promise<string> {
   try {
     const result = await slack.conversations.history({ channel: channelId, limit });
     const messages = result.messages || [];
-    const text = messages
-      .filter((m) => m.text && m.text.length > 20)
-      .map((m) => `- ${m.text}`)
-      .join('\n');
-    console.log(`[Slack] ${messages.length} mensagens carregadas do #feedbacks`);
+
+    // Busca threads de cada mensagem em paralelo
+    const withThreads = await Promise.all(
+      messages
+        .filter((m: any) => m.text && m.text.length > 20)
+        .map(async (m: any) => {
+          let block = `- ${m.text}`;
+          if (m.reply_count && m.thread_ts) {
+            try {
+              const thread = await slack.conversations.replies({ channel: channelId, ts: m.thread_ts });
+              const replies = (thread.messages || []).slice(1); // pula a mensagem pai
+              if (replies.length) {
+                block += '\n' + replies
+                  .filter((r: any) => r.text && r.text.length > 5)
+                  .map((r: any) => `  > [resposta] ${r.text}`)
+                  .join('\n');
+              }
+            } catch {}
+          }
+          return block;
+        })
+    );
+
+    const text = withThreads.join('\n');
+    console.log(`[Slack] ${messages.length} mensagens + threads carregados do #feedbacks`);
     return text;
   } catch (err) {
     console.error('[Slack] Erro ao buscar mensagens:', err);

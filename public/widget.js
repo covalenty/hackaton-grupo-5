@@ -135,7 +135,7 @@
     <div class="cw-header">
       <div class="cw-avatar">👩‍💼</div>
       <div class="cw-header-info">
-        <h4>Carla · Cienty</h4>
+        <h4>CarlinhIA · Cienty</h4>
         <p>🟢 Online agora · responde em segundos</p>
       </div>
       <button class="cw-close" id="cw-close-btn">✕</button>
@@ -160,7 +160,7 @@
       <input class="cw-input" id="cw-input" type="text" placeholder="Digite sua dúvida..." />
       <button class="cw-send" id="cw-send">➤</button>
     </div>
-    <div class="cw-footer">Powered by <span>Cienty AI</span></div>
+    <div class="cw-footer">Powered by <span>CarlinhIA</span></div>
   `;
   document.body.appendChild(chat);
 

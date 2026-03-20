@@ -9,8 +9,9 @@ import { getGeneralDashboard, getClientDashboard } from './analytics';
 import { getCRMSummary, getStagesFunnel } from './bigquery-client';
 import { getConversations } from './clint-data';
 import { getConvMeta, setConvMeta, AGENTS, STATUS_LABELS, getAllNps, addMessage, getMessages, getActiveSessions } from './conv-store';
-import { fetchSlackMessages } from './slack-client';
+import { fetchSlackMessages, sendToSlack } from './slack-client';
 import { analyzeMessages } from './sentiment';
+import Anthropic from '@anthropic-ai/sdk';
 
 const app = express();
 app.use(express.json());
@@ -170,6 +171,42 @@ app.post('/api/sessions/:id/reply', (req, res) => {
   addMessage(id, 'bot', `[Humano] ${message}`);
   setConvMeta(id, { status: 'human_active' });
   return res.json({ ok: true });
+});
+
+// Escalar conversa para Slack: resume o problema e posta no canal
+app.post('/api/sessions/:id/escalate', async (req, res) => {
+  const id = decodeURIComponent(req.params.id);
+  const msgs = getMessages(id);
+  if (!msgs.length) return res.status(400).json({ error: 'Sem mensagens nesta sessão' });
+
+  const transcript = msgs.slice(-20)
+    .map(m => `${m.role === 'user' ? 'Cliente' : 'Bot'}: ${m.text}`)
+    .join('\n');
+
+  let summary = '';
+  try {
+    const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const r = await ai.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 80,
+      messages: [{
+        role: 'user',
+        content: `Analise esta conversa de suporte e responda APENAS com uma linha no formato exato:\nCNPJ: descrição do problema em até 10 palavras\n\nSe não houver CNPJ na conversa, use "Visitante" no lugar do CNPJ. Nada mais além dessa linha.\n\nCONVERSA:\n${transcript}`,
+      }],
+    });
+    summary = (r.content.find((b: any) => b.type === 'text') as any)?.text?.trim() ?? '';
+  } catch (err) {
+    console.error('[Escalate] Erro ao resumir:', err);
+  }
+
+  if (!summary) summary = `${id.slice(0, 20)}: Problema reportado pelo cliente`;
+
+  const slackText = `🔴 *Escalonamento CarlinhIA* — ${summary}`;
+  const sent = await sendToSlack(slackText);
+  if (!sent) return res.status(500).json({ error: 'Falha ao enviar para Slack' });
+
+  setConvMeta(id, { status: 'human_active' });
+  return res.json({ ok: true, summary });
 });
 
 app.get('/api/conversations', (req, res) => {

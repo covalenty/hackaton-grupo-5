@@ -96,6 +96,9 @@
     .cp-label { color: #888; } .cp-value { color: #1a1a1a; font-weight: 500; }
     .dist-mini { font-size: 12px; padding: 6px 10px; background: #fafafa; border-radius: 8px; display: flex; justify-content: space-between; margin-bottom: 4px; }
     .ds-ok { color: #16a34a; font-weight: 600; } .ds-err { color: #dc2626; font-weight: 600; }
+    .cp-escalate-btn { width: 100%; padding: 8px; background: white; color: #dc2626; border: 1.5px solid #dc2626; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .cp-escalate-btn:hover { background: #fee2e2; }
+    .cp-escalate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* ===== DASHBOARDS ===== */
     .card { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
@@ -335,6 +338,10 @@
             <option value="resolved_human">Resolvido Humano</option>
           </select>
           <button class="cp-save-btn" onclick="saveConvMeta()">Salvar</button>
+          <button class="cp-escalate-btn" id="escalate-btn" onclick="escalateToSlack()" style="display:none">
+            📤 Enviar para Slack
+          </button>
+          <div id="escalate-status" style="font-size:11px;margin-top:4px;text-align:center;display:none"></div>
         </div>
       </div>
       <div class="cp-section">
@@ -659,6 +666,8 @@
         <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444">Canal: ${c.channel || '—'}</div>
         <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444">NPS: ${c.nps || '—'}</div>
         <div style="font-size:12px;padding:5px 0;color:#444">Sessão: ${id.slice(-8)}</div>`;
+      document.getElementById('escalate-btn').style.display = 'flex';
+      document.getElementById('escalate-status').style.display = 'none';
       fetch(`/api/sessions/${encodeURIComponent(id)}/messages`)
         .then(r => r.json())
         .then(msgs => renderLiveMessages(msgs))
@@ -673,6 +682,8 @@
         <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444">GMV último mês: ${c.gmv || '—'}</div>
         <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444">Total pedidos: ${c.totalOrders || '—'}</div>
         <div style="font-size:12px;padding:5px 0;color:#444">Cidade: ${c.city || '—'}${c.state ? '/' + c.state : ''}</div>`;
+      document.getElementById('escalate-btn').style.display = 'none';
+      document.getElementById('escalate-status').style.display = 'none';
       // Modo IA: restaura input normal
       document.getElementById('human-mode-bar').style.display = 'none';
       document.getElementById('input').placeholder = 'Digite sua dúvida...';
@@ -710,6 +721,34 @@
     // Re-select to refresh badge
     const el = document.querySelector('.conv-item.active');
     if (el) el.classList.add('active');
+  }
+
+  async function escalateToSlack() {
+    if (!selectedConvId) return;
+    const btn = document.getElementById('escalate-btn');
+    const status = document.getElementById('escalate-status');
+    btn.disabled = true;
+    btn.textContent = '⏳ Enviando...';
+    try {
+      const r = await fetch(`/api/sessions/${encodeURIComponent(selectedConvId)}/escalate`, { method: 'POST' });
+      const data = await r.json();
+      if (data.ok) {
+        btn.textContent = '✅ Enviado!';
+        status.style.display = 'block';
+        status.style.color = '#16a34a';
+        status.textContent = data.summary;
+        setTimeout(() => { btn.textContent = '📤 Enviar para Slack'; btn.disabled = false; }, 4000);
+      } else {
+        throw new Error(data.error || 'Erro');
+      }
+    } catch (e) {
+      btn.textContent = '❌ Falhou';
+      btn.disabled = false;
+      status.style.display = 'block';
+      status.style.color = '#dc2626';
+      status.textContent = 'Verifique as configurações do Slack';
+      setTimeout(() => { btn.textContent = '📤 Enviar para Slack'; status.style.display = 'none'; }, 4000);
+    }
   }
 
   // ===== KANBAN =====

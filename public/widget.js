@@ -197,6 +197,7 @@
     if (!text) return;
     input.value = '';
     addMsg(text, 'user');
+    knownMsgCount++; // account for user message stored on server
     setTyping(true);
     try {
       const res = await fetch(BASE_URL + '/chat', {
@@ -207,6 +208,7 @@
       const data = await res.json();
       setTyping(false);
       addMsg(data.reply || 'Desculpe, tive um problema.', 'bot');
+      knownMsgCount++; // account for bot reply stored on server
     } catch {
       setTyping(false);
       addMsg('Erro de conexão. Tente novamente.', 'bot');
@@ -246,4 +248,26 @@
 
   // Show bubble after 2s
   setTimeout(() => { if (!isOpen) bubble.style.display = 'block'; }, 2000);
+
+  // Polling: sync admin replies back to widget in real-time
+  // knownMsgCount tracks how many server messages we've already rendered
+  let knownMsgCount = 0;
+
+  async function syncMessages() {
+    try {
+      const r = await fetch(BASE_URL + '/api/sessions/' + encodeURIComponent(SESSION_ID) + '/messages');
+      if (!r.ok) return;
+      const msgs = await r.json();
+      if (msgs.length > knownMsgCount) {
+        msgs.slice(knownMsgCount).forEach(m => {
+          // bot messages rendered here come exclusively from admin replies
+          // (user messages are already shown locally by sendMsg)
+          if (m.role === 'bot') addMsg(m.text.replace(/^\[Humano\]\s*/, ''), 'bot');
+        });
+        knownMsgCount = msgs.length;
+      }
+    } catch {}
+  }
+
+  setInterval(() => { if (isOpen) syncMessages(); }, 2000);
 })();

@@ -2,6 +2,22 @@ import { WebClient } from '@slack/web-api';
 
 const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 
+export async function sendToSlack(text: string): Promise<boolean> {
+  const channelId = process.env.SLACK_FEEDBACK_CHANNEL_ID;
+  if (!channelId || !process.env.SLACK_BOT_TOKEN) {
+    console.warn('[Slack] Token ou canal não configurado, não foi possível enviar mensagem');
+    return false;
+  }
+  try {
+    await slack.chat.postMessage({ channel: channelId, text });
+    console.log('[Slack] Mensagem enviada:', text.slice(0, 80));
+    return true;
+  } catch (err) {
+    console.error('[Slack] Erro ao enviar mensagem:', err);
+    return false;
+  }
+}
+
 export async function fetchFeedbacksFromSlack(limit = 100): Promise<string> {
   const channelId = process.env.SLACK_FEEDBACK_CHANNEL_ID;
   if (!channelId || !process.env.SLACK_BOT_TOKEN) {
